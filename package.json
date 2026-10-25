@@ -17,6 +17,6 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
-    "lucide-static": "^1.54.0"
+    "lucide-static": "^1.61.0"
   }
 }

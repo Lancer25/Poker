@@ -1,0 +1,22 @@
+{
+  "name": "friends-holdem",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Friends-only Texas Hold'em with web and WeChat clients and a real-time Node.js server",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/Lancer25/Poker.git" },
+  "engines": { "node": ">=24.0.0" },
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "pokersolver": "2.1.4",
+    "sharp": "^0.35.5",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "lucide-static": "^1.54.0"
+  }
+}

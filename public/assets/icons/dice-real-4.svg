@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="70" viewBox="0 0 64 70" data-face="4">
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2=".7" y2="1"><stop stop-color="#ffffff"/><stop offset=".55" stop-color="#f3f4ed"/><stop offset="1" stop-color="#d7dfd9"/></linearGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2=".2" y2="1"><stop stop-color="#dde5df"/><stop offset="1" stop-color="#93a49a"/></linearGradient>
+    <radialGradient id="pip" cx=".36" cy=".3" r=".8"><stop stop-color="#8d2635"/><stop offset=".7" stop-color="#b83546"/><stop offset="1" stop-color="#df6870"/></radialGradient>
+  </defs>
+  <ellipse cx="32" cy="65" rx="24" ry="3" fill="#000000" opacity=".22"/>
+  <rect x="6" y="10" width="52" height="52" rx="10" fill="url(#edge)" stroke="#82968b" stroke-width=".8"/>
+  <rect x="6" y="5" width="52" height="52" rx="10" fill="url(#body)" stroke="#ffffff" stroke-width="1"/>
+  <rect x="9" y="8" width="46" height="46" rx="8" fill="none" stroke="#b8c7bd" stroke-opacity=".6" stroke-width=".6"/>
+  <circle data-pip="true" cx="21" cy="20" r="3.9" fill="url(#pip)"/>
+  <circle data-pip="true" cx="43" cy="20" r="3.9" fill="url(#pip)"/>
+  <circle data-pip="true" cx="21" cy="42" r="3.9" fill="url(#pip)"/>
+  <circle data-pip="true" cx="43" cy="42" r="3.9" fill="url(#pip)"/>
+</svg>

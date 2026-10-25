@@ -1,0 +1,42 @@
+.account-page {
+  padding: 40rpx 32rpx;
+}
+.avatar-editor {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+.avatar-editor button {
+  font-size: 24rpx;
+  margin: 0;
+}
+.avatar-preview {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  vertical-align: middle;
+  margin-right: 12rpx;
+}
+.account-title {
+  font-size: 44rpx;
+  font-weight: 700;
+  margin-bottom: 40rpx;
+}
+.label {
+  color: #d9e4dc;
+  font-size: 26rpx;
+  margin: 28rpx 0 12rpx;
+}
+input {
+  box-sizing: border-box;
+  width: 100%;
+}
+button {
+  margin-top: 36rpx;
+}
+.error {
+  color: #ffb4b4;
+  font-size: 26rpx;
+  line-height: 1.7;
+  margin-top: 24rpx;
+}

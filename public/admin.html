@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>好友德州 · 后台</title>
+    <link rel="stylesheet" href="/admin.css?v=hardening1" />
+  </head>
+  <body>
+    <header>
+      <strong>好友德州 <span>管理后台</span></strong>
+      <nav>
+        <a href="/">返回牌桌</a
+        ><button
+          id="refresh"
+          class="icon-button"
+          type="button"
+          aria-label="刷新后台"
+          title="刷新后台"
+        >
+          <img src="/assets/icons/refresh-cw.svg" alt="" /></button
+        ><button id="adminLogout" type="button">退出登录</button>
+      </nav>
+    </header>
+    <main id="adminMain" hidden>
+      <div class="admin-nav" role="tablist" aria-label="后台导航">
+        <button
+          id="nav-rooms"
+          role="tab"
+          aria-selected="true"
+          aria-controls="view-rooms"
+          data-view="rooms"
+          type="button"
+        >
+          房间与历史
+        </button>
+        <button
+          id="nav-accounts"
+          role="tab"
+          aria-selected="false"
+          aria-controls="view-accounts"
+          data-view="accounts"
+          type="button"
+        >
+          账号
+        </button>
+        <button
+          id="nav-invites"
+          role="tab"
+          aria-selected="false"
+          aria-controls="view-invites"
+          data-view="invites"
+          type="button"
+        >
+          邀请码
+        </button>
+        <button
+          id="nav-legacy"
+          role="tab"
+          aria-selected="false"
+          aria-controls="view-legacy"
+          data-view="legacy"
+          type="button"
+        >
+          旧数据
+        </button>
+        <button
+          id="nav-audit"
+          role="tab"
+          aria-selected="false"
+          aria-controls="view-audit"
+          data-view="audit"
+          type="button"
+        >
+          操作日志
+        </button>
+        <button id="nav-system" role="tab" aria-selected="false" aria-controls="view-system" data-view="system" type="button">运行诊断</button>
+      </div>
+      <section id="view-system" role="tabpanel" aria-labelledby="nav-system" hidden>
+        <div class="section-heading"><h1>运行诊断</h1><button id="refreshSystem" type="button" class="icon-button" aria-label="刷新运行诊断" title="刷新"><img src="/assets/icons/refresh-cw.svg" alt="" /></button></div>
+        <p id="systemStatus" role="status"></p><dl id="systemSummary" class="system-summary"></dl>
+        <h2>操作耗时</h2><div class="table-scroll"><table><thead><tr><th>指标</th><th>样本</th><th>平均 ms</th><th>P95 ms</th><th>最大 ms</th></tr></thead><tbody id="systemLatency"></tbody></table></div>
+        <div class="section-heading"><h2>备份</h2><button id="createBackup" type="button">创建备份</button></div>
+        <div class="table-scroll"><table><thead><tr><th>时间</th><th>模式</th><th>完整性</th><th>编号</th></tr></thead><tbody id="systemBackups"></tbody></table></div>
+      </section>
+      <section id="view-rooms" role="tabpanel" aria-labelledby="nav-rooms">
+        <div class="section-heading">
+          <div>
+            <h1>房间与历史</h1>
+            <span id="roomSummary"></span>
+          </div>
+          <span id="roomUpdated"></span>
+        </div>
+        <div class="room-toolbar">
+          <div class="room-scopes" role="tablist" aria-label="房间分类">
+            <button
+              type="button"
+              data-scope="active"
+              role="tab"
+              aria-selected="true"
+            >
+              当前房间</button
+            ><button
+              type="button"
+              data-scope="ended"
+              role="tab"
+              aria-selected="false"
+            >
+              历史房间</button
+            ><button
+              type="button"
+              data-scope="all"
+              role="tab"
+              aria-selected="false"
+            >
+              全部
+            </button>
+          </div>
+          <label class="room-search"
+            ><img src="/assets/icons/search.svg" alt="" /><input
+              id="roomSearch"
+              type="search"
+              placeholder="房间号、房主或玩家"
+              aria-label="搜索房间"
+          /></label>
+          <label
+            >状态<select id="roomStatus">
+              <option value="all">全部状态</option>
+              <option value="playing">正在打牌</option>
+              <option value="waiting">等待开局</option>
+              <option value="showdown">本手已结算</option>
+              <option value="offline">无人在线</option>
+              <option value="ending">结算后自动结束</option>
+              <option value="ended">本场已结束</option>
+            </select></label
+          >
+          <label
+            >排序<select id="roomOrder">
+              <option value="newest">最近更新优先</option>
+              <option value="oldest">较早更新优先</option>
+            </select></label
+          >
+        </div>
+        <div class="table-scroll">
+          <table class="room-list">
+            <thead>
+              <tr>
+                <th>房间</th>
+                <th>房主</th>
+                <th>状态</th>
+                <th>在线 / 入座</th>
+                <th>场次</th>
+                <th>最近更新</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="roomList"></tbody>
+          </table>
+        </div>
+        <div class="room-pagination">
+          <span id="roomPageInfo"></span>
+          <div>
+            <button
+              id="roomPrev"
+              class="icon-button"
+              type="button"
+              aria-label="上一页"
+              title="上一页"
+            >
+              <img src="/assets/icons/chevron-left.svg" alt="" /></button
+            ><span id="roomPageNumber"></span
+            ><button
+              id="roomNext"
+              class="icon-button"
+              type="button"
+              aria-label="下一页"
+              title="下一页"
+            >
+              <img src="/assets/icons/chevron-right.svg" alt="" />
+            </button>
+          </div>
+        </div>
+      </section>
+      <section
+        id="view-accounts"
+        role="tabpanel"
+        aria-labelledby="nav-accounts"
+        hidden
+      >
+        <div class="section-heading">
+          <h1>账号</h1>
+          <span id="userCount"></span>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>昵称</th>
+                <th>账号</th>
+                <th>状态</th>
+                <th>最近登录</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="users"></tbody>
+          </table>
+        </div>
+      </section>
+      <section
+        id="view-invites"
+        role="tabpanel"
+        aria-labelledby="nav-invites"
+        hidden
+      >
+        <div class="section-heading"><h2>邀请码</h2></div>
+        <form id="inviteForm" class="invite-form">
+          <label
+            >注册次数<input
+              id="inviteUses"
+              type="number"
+              value="1"
+              min="1"
+              max="50"
+              required /></label
+          ><label
+            >有效天数<input
+              id="inviteDays"
+              type="number"
+              value="30"
+              min="0"
+              max="365"
+              required /></label
+          ><button class="primary" type="submit">生成邀请码</button>
+        </form>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>邀请码</th>
+                <th>使用次数</th>
+                <th>有效期</th>
+                <th>状态</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="invites"></tbody>
+          </table>
+        </div>
+      </section>
+      <section
+        id="view-legacy"
+        role="tabpanel"
+        aria-labelledby="nav-legacy"
+        hidden
+      >
+        <div class="section-heading"><h2>旧房主恢复</h2></div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>房间</th>
+                <th>当前房主</th>
+                <th>本场状态</th>
+                <th>在线人数</th>
+                <th>自动结束</th>
+                <th>恢复到账号</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="roomOwners"></tbody>
+          </table>
+        </div>
+        <div class="legacy-divider">
+          <div class="section-heading">
+            <h2>旧玩家关联</h2>
+            <span id="legacyCount"></span>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>房间</th>
+                  <th>旧昵称</th>
+                  <th>场次</th>
+                  <th>关联账号</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="legacy"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+      <section
+        id="view-audit"
+        role="tabpanel"
+        aria-labelledby="nav-audit"
+        hidden
+      >
+        <div class="section-heading"><h2>操作记录</h2></div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>时间</th>
+                <th>操作人</th>
+                <th>操作</th>
+                <th>对象</th>
+              </tr>
+            </thead>
+            <tbody id="audit"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <p id="adminMessage" role="status"></p>
+    <dialog id="roomDialog" aria-labelledby="roomDialogTitle">
+      <div class="room-dialog-header">
+        <div>
+          <h2 id="roomDialogTitle">房间记录</h2>
+          <p id="roomDialogMeta"></p>
+        </div>
+        <button
+          id="closeRoomDialog"
+          type="button"
+          class="icon-button"
+          aria-label="关闭房间记录"
+          title="关闭房间记录"
+        >
+          <img src="/assets/icons/x.svg" alt="" />
+        </button>
+      </div>
+      <div id="roomDetailStatus" role="status"></div>
+      <button id="retryRoomHistory" type="button" hidden>重新加载</button>
+      <div id="roomDetail" hidden>
+        <div class="round-toolbar">
+          <label
+            >场次<select
+              id="adminRoundSelect"
+              aria-label="选择历史场次"
+            ></select></label
+          ><span id="roundMetadata"></span>
+        </div>
+        <p id="roundNotice"></p>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>玩家</th>
+                <th>买入</th>
+                <th>筹码</th>
+                <th>净输赢</th>
+              </tr>
+            </thead>
+            <tbody id="historyResults"></tbody>
+          </table>
+        </div>
+        <div id="historyTournament"></div>
+        <div class="hand-heading">
+          <h3>逐手记录</h3>
+          <label
+            ><input
+              id="adminHandSearch"
+              type="search"
+              placeholder="手数或赢家"
+              aria-label="搜索手牌记录"
+          /></label>
+        </div>
+        <div id="adminHands"></div>
+        <div class="room-pagination">
+          <span id="handPageInfo"></span>
+          <div>
+            <button
+              id="handPrev"
+              class="icon-button"
+              type="button"
+              aria-label="上一组手牌"
+              title="上一组手牌"
+            >
+              <img src="/assets/icons/chevron-left.svg" alt="" /></button
+            ><button
+              id="handNext"
+              class="icon-button"
+              type="button"
+              aria-label="下一组手牌"
+              title="下一组手牌"
+            >
+              <img src="/assets/icons/chevron-right.svg" alt="" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </dialog>
+    <dialog id="userDialog">
+      <form id="userForm">
+        <h2>编辑账号</h2>
+        <input id="editId" type="hidden" /><label
+          >昵称<input id="editNickname" maxlength="16" required /></label
+        ><label
+          >账号<input
+            id="editUsername"
+            minlength="3"
+            maxlength="24"
+            required
+            autocapitalize="none" /></label
+        ><label
+          >新密码（可选）<input
+            id="editPassword"
+            type="password"
+            minlength="8"
+            maxlength="128"
+            autocomplete="new-password" /></label
+        ><label class="checkbox"
+          ><input id="editEnabled" type="checkbox" />启用账号</label
+        >
+        <p id="editError" class="error" role="alert" hidden></p>
+        <div class="dialog-actions">
+          <button id="cancelEdit" type="button">取消</button
+          ><button id="saveUser" class="primary" type="submit">保存</button>
+        </div>
+      </form>
+    </dialog>
+    <script type="module" src="/admin.js?v=hardening1"></script>
+  </body>
+</html>

@@ -1,0 +1,25 @@
+import {startHand} from './game-helpers.js';
+import test from 'node:test';import assert from 'node:assert/strict';import {spawn} from 'node:child_process';import {mkdtempSync,readFileSync,writeFileSync,rmSync} from 'node:fs';import {tmpdir} from 'node:os';import path from 'node:path';import {once} from 'node:events';import {setTimeout as delay} from 'node:timers/promises';import { WebSocket } from "./protocol-peer.js";
+import {createRoom,joinRoom,command} from '../server/game.js';import {seedAccounts,testPassword,apiAt} from './auth-helpers.js';
+test('real partial-flop snapshots protect every role and survive restart without replay or shortened timer',{timeout:15000},async t=>{
+ const dir=mkdtempSync(path.join(tmpdir(),'holdem-flop-'));const {store,admin,invite}=await seedAccounts(dir),auth=[store.startSession(admin.id)];for(let i=1;i<4;i++)auth.push(await store.register({username:'flop_'+i,nickname:'P'+i,password:testPassword,inviteCode:invite.code}));
+ const r=createRoom('H',undefined,undefined,undefined,30,'friends').room;joinRoom(r,'B');joinRoom(r,'God');r.players.forEach((p,i)=>p.accountId=auth[i].user.id);Object.assign(r.players[2],{stack:0,eliminated:true});r.players[0].stack=20000;command(r,r.players[2].id,'godmode',{enabled:true});startHand(r,r.host);r.turn=0;r.currentBet=0;
+ r.players.forEach((p,i)=>Object.assign(p,{cards:i===0?['As','Ad']:i===1?['Ks','Kd']:[],bet:0,total:i<2?100:0,stack:i===0?19900:i===1?9900:0,actedAt:i===1?0:null}));r.deck=['Jh','6s','8d','5s','7c','3d','2h','4s'];
+ writeFileSync(dir+'/rooms.json',JSON.stringify({rooms:[r],sessions:[]}));let child,port;const peers=[];
+ async function stop(){for(const p of peers)p.ws.terminate();if(child?.exitCode===null){const done=once(child,'exit');child.kill();await done;}}
+ t.after(async()=>{await stop();assert.equal(path.dirname(dir),path.resolve(tmpdir()));rmSync(dir,{recursive:true,force:true});});
+ async function boot(){child=spawn(process.execPath,['server/index.js'],{env:{...process.env,PORT:'0',DATA_DIR:dir},stdio:['ignore','pipe','pipe']});port=Number((await once(child.stdout,'data'))[0].toString().match(/localhost:(\d+)/)[1]);}
+ async function until(check){const end=Date.now()+5000;while(!check()){if(Date.now()>end)throw Error('Sequential flop network timeout');await delay(5);}}
+ async function client(index){const ws=new WebSocket('ws://127.0.0.1:'+port),p={ws,state:null,states:[],queue:[],send(type,data={}){ws.send(JSON.stringify({type,...data}));}};peers.push(p);ws.on('message',raw=>{const m=JSON.parse(raw);if(m.type==='state'){p.state=m.room;p.states.push(m.room);}else p.queue.push(m);});await once(ws,'open');p.send('authenticate',{token:auth[index].token,compactState:true});await until(()=>p.queue.some(m=>m.type==='account'));p.send(index===3?'watch':'resume',{room:r.id});await until(()=>p.state);return p;}
+ await boot();let current=[];for(let i=0;i<4;i++)current.push(await client(i));current[0].send('check');await until(()=>current.every(p=>p.state.board.length===1));const started=current[0].state.flopReveal.startedAt;
+ assert.equal(current[2].state.godMode,true);assert.equal(current[3].state.spectating,true);
+ for(const p of current){const s=p.state;assert.equal(s.turn,-1);assert.equal(s.deadline,null);assert.equal(s.insight,null);assert.equal(s.canRaise,false);assert.equal(s.deck,undefined);assert.equal(s.flopReveal.runout,undefined);for(const card of ['3d','7c','8d','Jh'])assert.ok(!JSON.stringify(s).includes(JSON.stringify(card)));}
+ current[1].send('raise',{amount:40});await until(()=>current[1].queue.some(m=>m.type==='error'));assert.match(current[1].queue.find(m=>m.type==='error').message,/翻牌/);
+ assert.equal((await apiAt(port,'/api/rooms/'+r.id+'/history','GET',undefined,auth[1].token)).data.hands.length,0);
+ await until(()=>current.every(p=>p.state.board.length===2));for(const p of current){assert.ok(p.state.serverTime>=started+1000);assert.equal(p.state.deadline,null);assert.equal(p.state.insight,null);assert.ok(!JSON.stringify(p.state).includes('"7c"'));}
+ const persisted=JSON.parse(readFileSync(dir+'/rooms.json')).rooms[0];assert.equal(persisted.flopReveal.startedAt,started);assert.equal(persisted.board.length,2);
+ await stop();await boot();current=[];for(let i=0;i<4;i++)current.push(await client(i));assert.ok(current.every(p=>p.state.board.length>=2));await until(()=>current.every(p=>p.state.board.length===3&&!p.state.flopReveal));
+ for(const p of current){const first=p.states.find(s=>s.board.length===3);assert.ok(first.serverTime>=started+2000);assert.ok(first.serverTime>=persisted.flopReveal.nextAt);assert.ok(first.deadline-first.serverTime>28000);assert.deepEqual(first.board,['2h','3d','7c']);}
+ const actorId=current[0].state.players[current[0].state.turn].id,actor=current.find(p=>p.state.me===actorId);actor.send('fold');await until(()=>current.every(p=>p.state.phase==='showdown'));
+ const history=await apiAt(port,'/api/rooms/'+r.id+'/history','GET',undefined,auth[3].token);assert.deepEqual(history.data.hands[0].board,['2h','3d','7c']);assert.deepEqual(history.data.hands[0].shownWinners,[]);
+});

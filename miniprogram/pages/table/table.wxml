@@ -1,0 +1,778 @@
+<view
+  class="page {{experience.fourColor?'four-color':''}} {{experience.motion?'':'motion-off'}}"
+>
+  <view class="account-header"
+    ><view class="connection muted"
+      >{{!user ? '未登录' : connected ? '已连接' : '连接中'}}</view
+    ><button wx:if="{{user}}" size="mini" bindtap="logout">退出登录</button
+    ><button wx:if="{{user}}" size="mini" bindtap="openAccount">
+      账号管理
+    </button></view
+  >
+  <view wx:if="{{!user}}" class="lobby">
+    <view wx:if="{{authMode==='register'}}" class="avatar-editor"
+      ><button
+        open-type="chooseAvatar"
+        bindchooseavatar="chooseRegisterAvatar"
+        disabled="{{avatarBusy || authBusy}}"
+      >
+        <image
+          wx:if="{{authAvatarPreview}}"
+          src="{{authAvatarPreview}}"
+          mode="aspectFill"
+          class="avatar-preview"
+        />选择头像</button
+      ><button size="mini" bindtap="clearRegisterAvatar">恢复默认</button></view
+    >
+    <view class="title">好友德州</view>
+    <view class="row auth-tabs"
+      ><button
+        class="{{authMode==='login'?'primary':''}}"
+        data-mode="login"
+        bindtap="authMode"
+      >
+        登录</button
+      ><button
+        class="{{authMode==='register'?'primary':''}}"
+        data-mode="register"
+        bindtap="authMode"
+      >
+        注册
+      </button></view
+    >
+    <view wx:if="{{authMode==='register'}}"
+      ><view class="label">昵称</view
+      ><input
+        maxlength="16"
+        value="{{authNickname}}"
+        data-field="authNickname"
+        bindinput="input"
+    /></view>
+    <view class="label">账号</view
+    ><input
+      maxlength="24"
+      value="{{authUsername}}"
+      data-field="authUsername"
+      bindinput="input"
+    />
+    <view class="label">密码</view
+    ><input
+      password="{{true}}"
+      maxlength="128"
+      value="{{authPassword}}"
+      data-field="authPassword"
+      bindinput="input"
+    />
+    <view wx:if="{{authMode==='register'}}"
+      ><view class="label">邀请码</view
+      ><input
+        maxlength="32"
+        value="{{authInvite}}"
+        data-field="authInvite"
+        bindinput="input"
+    /></view>
+    <view wx:if="{{authError}}" class="auth-error">{{authError}}</view>
+    <button
+      class="primary auth-submit"
+      bindtap="submitAuth"
+      loading="{{authBusy}}"
+      disabled="{{authBusy || avatarBusy}}"
+    >
+      {{authMode==='register'?'注册并登录':'登录'}}
+    </button>
+  </view>
+  <view wx:elif="{{!room}}" class="lobby">
+    <view class="title">好友德州</view
+    ><view class="muted subtitle">无限注 · 虚拟筹码 · 最多 9 人</view>
+    <view class="account-summary"
+      ><view>{{user.nickname}}</view
+      ><view class="muted">{{user.username}}</view></view
+    >
+    <view class="row"
+      ><button
+        class="{{mode==='create'?'primary':''}}"
+        data-mode="create"
+        bindtap="mode"
+      >
+        创建房间</button
+      ><button
+        class="{{mode==='join'?'primary':''}}"
+        data-mode="join"
+        bindtap="mode"
+      >
+        加入好友房
+      </button></view
+    >
+    <view wx:if="{{mode==='create'}}"
+      ><view class="label">玩法</view
+      ><picker
+        range="{{gameModes}}"
+        range-key="label"
+        value="{{gameModeIndex}}"
+        bindchange="gameModeChange"
+        ><view class="mode-picker"
+          >{{gameModes[gameModeIndex].label}}</view
+        ></picker
+      ><view class="format-rules"
+        >{{gameMode==='friends'?'每 '+(blindMinutes || 3)+' 分钟阶梯升盲，下一手生效 · 无底注 · 补筹码需全员同意':'冻结赛 · 前两级无底注 · 不可补筹码或复活'}}</view
+      ><view wx:if="{{gameMode==='friends'}}"><view class="label">升盲间隔（分钟）</view><input
+        type="number" data-field="blindMinutes" value="{{blindMinutes}}" bindinput="input" maxlength="2"
+      /></view
+      ><view class="label">行动时限（秒）</view
+      ><input
+        type="number"
+        data-field="turnSeconds"
+        value="{{turnSeconds}}"
+        bindinput="input"
+        maxlength="3" />
+      <view class="label">初始筹码</view
+      ><input
+        type="number"
+        value="{{chips}}"
+        data-field="chips"
+        bindinput="input" /><view class="row"
+        ><view class="field"
+          ><view class="label">小盲</view
+          ><input
+            type="number"
+            value="{{small}}"
+            disabled="{{gameMode!=='friends'}}"
+            data-field="small"
+            bindinput="input" /></view
+        ><view class="field"
+          ><view class="label">大盲</view
+          ><input
+            type="number"
+            value="{{big}}"
+            disabled="{{gameMode!=='friends'}}"
+            data-field="big"
+            bindinput="input" /></view></view
+    ></view>
+    <input
+      wx:else
+      placeholder="6 位房间号"
+      type="number"
+      value="{{code}}"
+      data-field="code"
+      bindinput="input"
+    />
+    <button class="primary" bindtap="enter" disabled="{{!connected}}">
+      进入牌桌
+    </button>
+    <view wx:if="{{watchRoom}}" class="row"><text>{{watchStatus}}</text><button disabled="{{!connected}}" bindtap="cancelWatch">撤销申请</button></view>
+    <view class="section"
+      ><view class="heading"
+        >{{user.role==='admin'?'我的房间与历史场次':'最近房间'}}</view
+      ><button
+        wx:for="{{archive}}"
+        wx:key="id"
+        data-room="{{item.id}}"
+        bindtap="openArchive"
+      >
+        房间 {{item.id}} · 第 {{item.roundNumber || 1}} 场 ·
+        {{item.statusLabel}} · 在线 {{item.onlineCount || 0}} · {{item.hand}} 手
+      </button></view
+    >
+  </view>
+  <view wx:else>
+    <view class="row room-bar"
+      ><button size="mini" class="back-button" bindtap="back">大厅</button
+      ><view
+        ><view class="heading">{{room.testRound?'测试房':'好友房'}} {{room.id}}</view
+        ><view class="muted"
+          >盲注 {{room.small}}/{{room.big}} · {{room.players.length}}/9 人 ·
+          在线 {{room.onlineCount || 0}} · 观战 {{room.spectatorCount || 0}} · 第 {{room.roundNumber || 1}} 场 · 第
+          {{room.hand}} 手</view
+        ><view class="muted"
+          >房主：{{isHost?'你':hostName}} · 行动 {{room.turnSeconds ||
+          60}}s</view
+        ></view
+      ><button bindtap="copy">房间号</button
+      ><button
+        bindtap="toggleExperience"
+        class="settings-button"
+        aria-label="体验设置"
+      >
+        <image src="/assets/settings-2.svg" /></button
+    ></view>
+    <view wx:if="{{settingsOpen}}" class="experience-settings">
+      <view><text>震动提醒</text><switch checked="{{experience.vibration}}" data-field="vibration" bindchange="experienceChange" color="#71d3b9" /></view>
+      <view class="heading">体验设置</view>
+      <view
+        ><text>游戏音效</text
+        ><switch
+          checked="{{experience.sound}}"
+          data-field="sound"
+          bindchange="experienceChange"
+          color="#71d3b9"
+      /></view>
+      <view
+        ><text>音量</text
+        ><slider
+          value="{{experience.volume*100}}"
+          min="0"
+          max="100"
+          step="5"
+          data-field="volume"
+          bindchange="experienceChange"
+          activeColor="#71d3b9"
+      /></view>
+      <view
+        ><text>牌桌动效</text
+        ><switch
+          checked="{{experience.motion}}"
+          data-field="motion"
+          bindchange="experienceChange"
+          color="#71d3b9"
+      /></view>
+      <view
+        ><text>四色牌面</text
+        ><switch
+          checked="{{experience.fourColor}}"
+          data-field="fourColor"
+          bindchange="experienceChange"
+          color="#71d3b9"
+      /></view>
+      <view wx:if="{{room.gameMode==='friends' && !room.spectating}}"><text>获胜时向他人放大展示</text><switch checked="{{room.showWinningCards!==false}}" disabled="{{!connected}}" bindchange="winningCardsChange" color="#71d3b9" /></view>
+      <view wx:if="{{canManageBots}}">
+        <view class="heading">测试机器人</view>
+        <view class="row"><picker range="{{botNumbers}}" value="{{botCountIndex}}" bindchange="botCountChange" disabled="{{!room.botSetup.capacity}}"><view>数量 {{botNumbers[botCountIndex] || 1}}</view></picker><button size="mini" bindtap="addTestBots" disabled="{{!connected || !room.botSetup.capacity}}">添加陪练</button></view>
+        <view wx:for="{{room.botSetup.bots}}" wx:key="id" class="row"><text>{{item.name}}</text><button size="mini" data-id="{{item.id}}" bindtap="removeTestBot" disabled="{{!connected}}">移除</button></view>
+      </view>
+    </view>
+    <view wx:if="{{room.gameMode==='friends' && room.phase==='waiting' && room.hand===0 && seatDice && seatDice.status!=='idle'}}" class="seat-dice">
+      <view class="heading">掷骰排座</view>
+      <view class="muted">{{seatDice.status==='ready'?'座位已确认':seatDice.rollRound?'同点重掷 · 第 '+(seatDice.rollRound+1)+' 轮':'等待全员掷骰'}}</view>
+      <scroll-view scroll-y style="height:{{seatDice.listHeight}}rpx"><view wx:for="{{seatDice.entries}}" wx:key="id" class="dice-member"><text class="dice-name">{{item.name}}</text><view class="dice-pair"><image wx:for="{{item.diceImages}}" wx:for-item="src" wx:key="index" src="{{src}}" /></view><text>{{item.seatNumber?item.seatNumber+' 号位'+(item.seatNumber===1?' · 庄家':''):item.needsRoll?'待掷骰':item.totals[item.totals.length-1]+' 点'}}</text></view></scroll-view>
+      <button wx:if="{{seatDice.status!=='ready' && !room.spectating}}" bindtap="rollSeats" disabled="{{!connected || !seatDice.canRoll}}">{{seatDice.canRoll?(seatDice.rollRound?'重掷骰子':'掷骰子'):'等待其他牌手'}}</button>
+    </view>
+    <view wx:if="{{tournament}}" class="tournament-strip"
+      ><view class="event-title">{{tournamentTitle}}</view
+      ><view
+        >第 {{tournament.level}} 级 ·
+        {{tournament.remaining}}/{{tournament.entrants}} 人<text wx:if="{{room.gameMode!=='friends'}}"> · 大盲底注 {{tournament.ante}}</text></view
+      ><view><text wx:if="{{levelClock}}">{{levelClock}} </text>{{nextHandClock}}</view
+      ><view>{{nextLevelBlinds}}</view
+      ><view wx:if="{{tournament.deadButton || tournament.deadSmallBlind}}"
+        >{{tournament.deadButton?'死庄位':''}}
+        {{tournament.deadSmallBlind?'小盲空位':''}}</view
+      ></view
+    >
+    <view
+      class="table {{seats.length>=8?'table-crowded':seats.length===7?'table-seven':''}} {{winnerFocus.length?'winner-presenting':''}} effect-{{effect}}"
+      ><view class="felt"
+        ><image class="felt-texture" src="/assets/felt.jpg" mode="aspectFill"
+      /></view>
+      ><view class="table-mark">FRIENDS HOLD'EM</view
+      ><view class="center"
+        ><view class="table-stage">{{stage}}</view
+        ><view class="cards"
+          ><view
+            wx:for="{{board}}"
+            wx:key="index"
+            class="card suit-{{item.colorSuit}} {{item.back?'back':''}} {{item.red?'red':''}} {{hintsEnabled && item.best?'best-card':''}}"
+            ><view class="card-rank">{{item.rank}}</view
+            ><view class="card-suit">{{item.suit}}</view></view
+          ></view
+        ><view class="pot"
+          ><text>底池</text><text class="pot-value">{{room.pot}}</text></view
+        ><view wx:if="{{idle || room.phase==='ended'}}" class="payout"
+          >{{payout}}</view
+        ><view wx:if="{{me.inHand}}" class="contribution"
+          >本手投入 {{me.totalBet || 0}}</view
+        ></view
+      >
+      <view
+        wx:for="{{seats}}"
+        wx:key="key"
+        class="seat {{item.mine?'mine':''}} {{item.active?'active':''}} {{item.folded?'folded':''}} {{item.winner?'winner':''}}"
+        style="{{item.style}}"
+        ><view
+          wx:if="{{item.active && clockSeconds!==null}}"
+          class="seat-clock {{clockUrgent?'urgent':''}}"
+          >{{clockSeconds}}</view
+        ><view class="avatar" style="background-color:{{item.color}};" role="button" aria-label="查看 {{item.name}} 的资料" data-player="{{item.playerId}}" bindtap="openPlayer"
+          ><image
+            wx:if="{{item.avatarUrl}}"
+            src="{{item.avatarUrl}}"
+            mode="aspectFill"
+          /><text wx:else>{{item.avatar}}</text></view
+        ><view class="name"><text class="seat-name-label">{{item.name}}{{item.mine?' · 你':''}}</text><view class="player-latency {{item.latency.state}}" aria-label="{{item.latency.title}}"><image src="{{item.latency.icon}}" mode="aspectFit"/><text>{{item.latency.text}}</text></view></view
+        ><view class="stack">{{item.stack}}</view
+        ><view class="hand-total {{item.largeTotalBet?'amount-large':''}}"
+          >总下注 {{item.totalBet}}</view
+        ><view class="status">{{item.status}}</view
+        ><view class="cards tiny"
+          ><view
+            wx:for="{{item.cards}}"
+            wx:for-item="c"
+            wx:key="index"
+            class="card suit-{{c.colorSuit}} {{c.red?'red':''}} {{c.back?'back':''}}"
+            ><view class="card-rank">{{c.rank}}</view
+            ><view class="card-suit">{{c.suit}}</view></view
+          ></view
+        ><view class="seat-roles"
+          ><view wx:if="{{item.dealer}}" class="role-badge dealer">庄家</view
+          ><view wx:if="{{item.smallBlind}}" class="role-badge small-blind"
+            >小盲</view
+          ><view wx:if="{{item.bigBlind}}" class="role-badge big-blind"
+            >大盲</view
+          ></view
+        ></view
+      >
+      <view wx:if="{{winnerFocus.length}}" class="winner-focus {{winnerFocus.length>1?'multiple':''}}">
+        <view class="winner-focus-title">本手摊牌赢家</view>
+        <view class="winner-focus-hands">
+          <view wx:for="{{winnerFocus}}" wx:key="id" class="winner-focus-player">
+            <view class="winner-focus-name">{{item.name}}{{item.mine?' · 你':''}}</view>
+            <view class="cards"><view wx:for="{{item.cards}}" wx:for-item="c" wx:key="index" class="card suit-{{c.colorSuit}} {{c.red?'red':''}}"><view class="card-rank">{{c.rank}}</view><view class="card-suit">{{c.suit}}</view></view></view>
+            <view class="winner-focus-result">{{item.handLabel}} · +{{item.won}}</view>
+          </view>
+        </view>
+        <view class="winner-focus-board"><view>公共牌</view><view class="cards"><view wx:for="{{winnerBoard}}" wx:key="index" class="card suit-{{item.colorSuit}} {{item.red?'red':''}}"><view class="card-rank">{{item.rank}}</view><view class="card-suit">{{item.suit}}</view></view></view></view>
+      </view>
+    </view>
+    <view class="action-dock {{room.spectating?'spectator-dock':''}}"
+      ><view
+        wx:if="{{!room.spectating && !room.godMode && !(tournament && me.eliminated)}}"
+        class="personal-hand"
+        ><view class="cards own"
+          ><view
+            wx:for="{{myCards}}"
+            wx:key="index"
+            class="card suit-{{item.colorSuit}} {{item.red?'red':''}} {{item.back?'back':''}} {{hintsEnabled && item.best?'best-card':''}}"
+            ><view class="card-rank">{{item.rank}}</view
+            ><view class="card-suit">{{item.suit}}</view></view
+          ></view
+        ><view class="hand-caption">{{me.stack}} 筹码</view></view
+      ><view class="action-area"
+        ><view class="turn-notice {{actionable?'your-turn':''}}"
+          >{{!connected?'连接中断，正在重新连接':pendingAction?'操作已提交，等待确认':turnNotice}}</view
+        >
+        <view wx:if="{{room.canShowCards || room.hasShownCards}}" class="controls"><button wx:if="{{room.canShowCards}}" disabled="{{!connected || pendingReveal}}" bindtap="showCards">{{pendingReveal?'提交中…':'亮出手牌'}}</button><text wx:else>本手已亮牌</text></view>
+        <view wx:if="{{actionable}}" class="betting-controls"
+          ><view class="bet-presets"
+            ><button
+              wx:for="{{betPresets}}"
+              wx:key="label"
+              data-amount="{{item.value}}"
+              bindtap="betPreset"
+              disabled="{{item.disabled || pendingAction || !connected || clockSeconds===0}}"
+            >
+              {{item.label}}
+            </button></view
+          >
+          <slider
+            min="{{betMin}}"
+            max="{{betMax>betMin?betMax:betMin+betUnit}}"
+            step="{{betUnit}}"
+            value="{{betSliderValue}}"
+            bindchanging="betSlide"
+            bindchange="betSlide"
+            activeColor="#ebcc83"
+            disabled="{{raiseDisabled || pendingAction || !connected || clockSeconds===0}}"
+          />
+          <view wx:if="{{betImpact}}" class="bet-impact-native"><view>加注至 {{betImpact.target}}</view><view>本次补入 {{betImpact.added}}</view><view>剩余 {{betImpact.remaining}}</view></view>
+          <view class="row"
+            ><button
+              class="fold-button"
+              data-type="fold"
+              bindtap="act"
+              disabled="{{clockSeconds===0 || pendingAction || !connected}}"
+            >
+              弃牌</button
+            ><button
+              class="call-button"
+              disabled="{{clockSeconds===0 || pendingAction || !connected}}"
+              data-type="{{room.toCall?'call':'check'}}"
+              bindtap="act"
+            >
+              {{room.toCall?'跟注 '+call:'过牌'}}</button
+            ><button
+              class="allin-button"
+              data-type="allin"
+              bindtap="act"
+              disabled="{{allinDisabled || clockSeconds===0 || pendingAction || !connected}}"
+            >
+              全下
+            </button></view
+          ><view class="row manual-raise"
+            ><view class="raise-field"><view class="raise-label">加注至（本轮总额）</view><input
+              type="digit"
+              maxlength="-1"
+              data-field="raise"
+              value="{{raise}}"
+              bindinput="input"
+              disabled="{{raiseDisabled || pendingAction || !connected || clockSeconds===0}}"
+            /></view><button
+              class="primary"
+              data-type="raise"
+              bindtap="act"
+              disabled="{{raiseDisabled || clockSeconds===0 || pendingAction || !connected}}"
+            >
+              加注至
+            </button></view
+          ></view
+        >
+        <view
+          wx:if="{{canHostStart}}"
+          class="row"
+          ><button
+            class="primary"
+            data-type="start"
+            bindtap="act"
+            disabled="{{startDisabled || !connected}}"
+          >
+            {{room.hand?'开始下一手':tournament?'开始比赛':'开始发牌'}}
+          </button></view
+        >
+        <view wx:if="{{isHost && idle && startDisabled}}" class="muted"
+          >{{room.gameMode==='friends' && seatDice.status!=='idle'?'正在掷骰排座':'有筹码的玩家不足 2 人'}}</view
+        >
+        <view
+          wx:if="{{isHost && (tournament ? room.phase!=='ended' : idle)}}"
+          class="row"
+          ><button
+            data-type="end"
+            bindtap="act"
+            disabled="{{!connected || (tournament && tournament.stopRequested)}}"
+          >
+            {{tournament?'结束比赛':'结束本场'}}
+          </button></view
+        >
+        <view
+          wx:if="{{isHost && room.phase==='ended'}}"
+          class="rematch-controls"
+        >
+          <view class="muted">再开筹码</view>
+          <picker
+            range="{{rematchOptions}}"
+            range-key="label"
+            value="{{rematchModeIndex}}"
+            bindchange="rematchChange"
+            disabled="{{pendingRestart || !connected}}"
+            ><view class="mode-picker"
+              >{{rematchOptions[rematchModeIndex].label}}</view
+            ></picker
+          >
+          <view wx:if="{{room.canCarryRound===false}}" class="muted"
+            >淘汰赛已有零筹码玩家，需重置筹码</view
+          >
+          <button
+            class="primary"
+            data-type="restart"
+            bindtap="act"
+            disabled="{{pendingRestart || !connected}}"
+          >
+            {{pendingRestart?'正在再开':'再开一场'}}
+          </button>
+        </view>
+        <view
+          wx:if="{{!room.spectating && (!tournament || room.gameMode==='friends') && me.stack===0 && room.phase!=='ended'}}"
+          class="god-controls"
+        >
+          <button
+            wx:if="{{!rebuyQueued}}"
+            bindtap="toggleGodMode"
+            disabled="{{!connected || (!room.godMode && !room.canGodMode)}}"
+          >
+            {{room.godMode?'退出上帝模式':'开启上帝模式'}}
+          </button>
+          <view
+            >{{rebuyQueued?'补筹码已通过 · 下一手入局':room.canGodMode?(room.gameMode==='friends'?'仅旁观已发底牌':'补充筹码到账后自动退出'):'本手结束后可开启'}}</view
+          >
+        </view>
+        <view wx:if="{{room.spectating}}" class="god-controls"><button wx:if="{{room.canTakeSeat}}" data-type="sitin" bindtap="act" disabled="{{!connected}}">入座本场</button><view wx:elif="{{room.phase==='waiting'}}">座位已满 · 继续观战</view></view>
+      </view></view
+    >
+    <view wx:if="{{room.godMode}}" class="god-hands">
+      <view wx:for="{{godHands}}" wx:key="id" class="god-hand"
+        ><view class="god-name"
+          >{{item.name}}{{item.folded?' · 已弃牌':''}}</view
+        ><view class="cards"
+          ><view
+            wx:for="{{item.cards}}"
+            wx:for-item="c"
+            wx:key="index"
+            class="card suit-{{c.colorSuit}} {{c.red?'red':''}}"
+            ><view class="card-rank">{{c.rank}}</view
+            ><view class="card-suit">{{c.suit}}</view></view
+          ></view
+        ></view
+      >
+    </view>
+    <view
+      wx:if="{{!room.flopReveal && !room.spectating && !room.godMode && !(tournament && me.eliminated)}}"
+      class="hand-insight"
+    >
+      <view class="insight-toggle"
+        ><text>牌面提示</text
+        ><switch
+          checked="{{hintsEnabled}}"
+          bindchange="toggleHints"
+          color="#dfbe79"
+      /></view>
+      <view wx:if="{{hintsEnabled && insight}}">
+        <view class="insight-heading"
+          ><text class="insight-label">{{insight.label}}</text
+          ><text>{{insight.detail}}</text></view
+        >
+        <button class="insight-more" bindtap="toggleHintDetails">
+          {{hintExpanded?'收起参考':'听牌与判断参考'}}
+        </button>
+        <view wx:if="{{hintExpanded}}" class="insight-details">
+          <view wx:for="{{insight.draws}}" wx:key="label"
+            >{{item.label}} · {{item.outs}} 张补牌 · 下一张约
+            {{item.nextProbability}}%</view
+          >
+          <view wx:if="{{insight.combined}}"
+            >同花或顺子合计 {{insight.combined.outs}} 张补牌（已去重）· 下一张约
+            {{insight.combined.nextProbability}}%</view
+          >
+          <view wx:if="{{insight.callPrice}}"
+            >跟注门槛参考：约 {{insight.callPrice.percent}}%
+            底池权益。{{insight.callPrice.note}}</view
+          >
+          <view class="insight-note">{{insight.note}}</view>
+        </view>
+      </view>
+      <view wx:elif="{{hintsEnabled}}" class="insight-note"
+        >{{room.phase==='ended'?'本场已结束':me.folded?'已弃牌':'发牌后显示'}}</view
+      >
+    </view>
+    <view wx:if="{{hintsEnabled && forecastValue.status!=='hidden'}}" class="hand-forecast">
+      <view class="forecast-heading"><text>河牌潜力预测</text><text>{{forecastValue.methodText}}</text></view>
+      <view wx:if="{{forecastValue.status==='loading'}}">正在计算河牌潜力</view><view wx:elif="{{forecastValue.status==='error'}}">预测暂不可用</view>
+      <view wx:if="{{forecastValue.status==='ready'}}"><view class="forecast-ceiling">理论可达上限 · {{forecastValue.data.ceiling.label}}</view>
+        <view wx:for="{{forecastValue.topRows}}" wx:key="key" class="forecast-row"><text>{{item.label}}</text><progress percent="{{item.percent}}" stroke-width="4" activeColor="#71d3b9"/><text>{{item.text}}</text></view>
+        <button size="mini" bindtap="toggleForecast">{{forecastExpanded?'收起':'全部牌型概率'}}</button>
+        <view wx:if="{{forecastExpanded}}"><view wx:for="{{forecastValue.allRows}}" wx:key="key" class="forecast-row"><text>{{item.label}}</text><progress percent="{{item.percent}}" stroke-width="4" activeColor="#71d3b9"/><text>{{item.text}}</text></view></view>
+        <view class="insight-note">{{forecastValue.note}}</view>
+      </view>
+    </view>
+    <view class="tool-tabs">
+      <button
+        class="{{activePanel==='activity'?'selected':''}}"
+        data-panel="activity"
+        bindtap="switchPanel"
+      >
+        动态
+      </button>
+      <button
+        class="{{activePanel==='chips'?'selected':''}}"
+        data-panel="chips"
+        bindtap="switchPanel"
+      >
+        筹码{{requests.length?' · '+requests.length:''}}
+      </button>
+      <button
+        class="{{activePanel==='results'?'selected':''}}"
+        data-panel="results"
+        bindtap="switchPanel"
+      >
+        战绩
+      </button>
+      <button
+        class="{{activePanel==='history'?'selected':''}}"
+        data-panel="history"
+        bindtap="switchPanel"
+      >
+        记录
+      </button>
+      <button
+        wx:if="{{tournament}}"
+        class="{{activePanel==='tournament'?'selected':''}}"
+        data-panel="tournament"
+        bindtap="switchPanel"
+      >
+        赛事
+      </button>
+    </view>
+    <scroll-view scroll-y class="tool-scroll">
+      <view wx:if="{{activePanel==='activity'}}" class="section"
+        ><view class="heading">牌桌动态</view
+        ><view wx:for="{{room.log}}" wx:key="index" class="muted line"
+          >{{item}}</view
+        ><view wx:if="{{!room.log.length}}" class="muted"
+          >好友已入座，等待发牌</view
+        ></view
+      >
+      <view wx:if="{{activePanel==='chips'}}" class="section"
+        ><view wx:if="{{isHost && room.gameMode==='friends' && room.phase!=='ended'}}" class="friend-manager"><view class="heading">房间管理</view><view wx:for="{{room.manageableMembers}}" wx:key="id" class="member-row"><text>{{item.name}}{{item.spectating?' · 观战':''}}</text><text wx:if="{{item.pendingKick}}">本手后移出</text><button wx:else size="mini" disabled="{{!connected}}" data-id="{{item.id}}" bindtap="kickPlayer" aria-label="移出 {{item.name}}"><image src="/assets/user-x.svg" /></button></view></view
+        ><view wx:if="{{room.roomControls}}" class="native-room-controls">
+          <view class="heading">{{room.roomControls.realtimeAllowed?'全桌观战 · 实时底牌':'全桌观战 · 仅公开牌'}}</view>
+          <view wx:if="{{room.roomControls.enabled}}">
+            <view wx:if="{{myControlEligible}}" class="row"><text>准备</text><switch checked="{{myReady}}" disabled="{{!connected || controlPending || myAway || room.phase==='ended'}}" data-command="ready" bindchange="controlAction"/><text>暂离</text><switch checked="{{myAway}}" disabled="{{!connected || controlPending || room.phase==='ended'}}" data-command="away" bindchange="controlAction"/></view>
+            <button wx:if="{{myControlEligible && !room.roomControls.pause}}" disabled="{{!connected || controlPending || room.phase==='ended'}}" data-command="pause" bindtap="controlAction">申请手间暂停</button>
+            <view wx:if="{{room.roomControls.pause}}">{{room.roomControls.pause.state==='active'?'牌桌已暂停':'暂停表决 '+room.roomControls.pause.approved+'/'+room.roomControls.pause.required}}</view>
+            <view wx:if="{{canPauseVote}}" class="row"><button disabled="{{!connected || controlPending}}" data-command="pausevote" data-value="yes" bindtap="controlAction">同意</button><button disabled="{{!connected || controlPending}}" data-command="pausevote" data-value="no" bindtap="controlAction">拒绝</button></view>
+            <button wx:if="{{canCancelPause}}" disabled="{{!connected || controlPending}}" data-command="pausecancel" bindtap="controlAction">撤销暂停申请</button>
+            <button wx:if="{{room.roomControls.canManage && room.roomControls.pause && room.roomControls.pause.state==='active'}}" disabled="{{!connected || controlPending}}" data-command="resume" bindtap="controlAction">恢复牌桌</button>
+          </view>
+          <view wx:if="{{room.roomControls.canManage}}">
+            <button wx:if="{{!room.roomControls.enabled}}" disabled="{{!connected || controlPending || room.phase==='ended'}}" data-command="settings" bindtap="controlAction">启用房间控制</button>
+            <view wx:else>
+              <picker range="{{['房主审批','开放观战','关闭观战']}}" value="{{admissionIndex}}" disabled="{{!connected || controlPending || room.phase==='ended'}}" data-command="settings" data-field="admission" bindchange="controlAction"><view>观战准入 · {{['房主审批','开放观战','关闭观战'][admissionIndex]}}</view></picker>
+              <view class="row"><text>实时底牌</text><switch checked="{{room.roomControls.realtimeAllowed}}" disabled="{{!connected || controlPending || room.phase==='ended'}}" data-command="settings" data-field="reveal" bindchange="controlAction"/></view>
+              <view class="row"><text>全员准备后开手</text><switch checked="{{room.roomControls.settings.requireReady}}" disabled="{{!connected || controlPending || room.phase==='ended'}}" data-command="settings" data-field="requireReady" bindchange="controlAction"/></view>
+              <view wx:for="{{room.roomControls.spectatorRequests}}" wx:key="id"><text>{{item.user.nickname}} 申请观战</text><view class="row"><button disabled="{{!connected || controlPending}}" data-command="spectatorapprove" data-request="{{item.id}}" bindtap="controlAction">允许</button><button disabled="{{!connected || controlPending}}" data-command="spectatorreject" data-request="{{item.id}}" bindtap="controlAction">拒绝</button></view></view>
+            </view>
+          </view>
+        </view><view class="heading">筹码管理</view
+        ><view wx:if="{{!tournament && room.phase!=='ended'}}" class="row"
+          ><input
+            type="number"
+            data-field="rebuy"
+            value="{{rebuy}}"
+            bindinput="input"
+          /><button bindtap="request">申请补充</button></view
+        ><button wx:if="{{room.gameMode==='friends' && room.canRequestRebuy}}" disabled="{{!connected}}" bindtap="request">申请补充 {{room.initial}}</button
+        ><view wx:for="{{requests}}" wx:key="id"
+          class="rebuy-request"
+          ><view
+            >{{item.name}} 申请 {{item.amount}}{{item.kind!=='friend-rebuy' && item.status==='approved'?' ·
+            已批准，本手结束后到账':''}}</view
+          ><view wx:if="{{item.kind==='friend-rebuy'}}">
+            <view class="rebuy-progress">{{item.status==='approved'?'全员通过 · 下一手到账':'已同意 '+item.approvals.length+'/'+item.voters.length}}</view>
+            <view class="rebuy-votes"><text wx:for="{{item.votes}}" wx:for-item="vote" wx:key="id" class="{{vote.approved?'approved':'pending'}}">{{vote.name}} · {{vote.approved?'已同意':'待审批'}}</text></view>
+          </view
+          ><view wx:if="{{item.kind==='friend-rebuy'?item.canApprove:isHost}}" class="row"
+            ><button
+              disabled="{{!connected || room.phase==='ended' || item.status==='approved'}}"
+              data-type="approve"
+              data-id="{{item.id}}"
+              bindtap="approve"
+            >
+              {{item.kind==='friend-rebuy'?'同意':item.status==='approved'?'已批准':'批准'}}</button
+            ><button
+              disabled="{{!connected || room.phase==='ended'}}"
+              data-type="reject"
+              data-id="{{item.id}}"
+              bindtap="approve"
+            >
+              拒绝
+            </button></view
+          ><button wx:if="{{item.kind==='friend-rebuy' && item.canCancel}}" disabled="{{!connected}}" data-type="cancelrebuy" data-id="{{item.id}}" bindtap="approve">撤销申请</button
+          ></view
+        ></view
+      >
+      <view wx:if="{{activePanel==='results'}}" class="section"
+        ><view class="heading">本场战绩</view
+        ><view class="result muted"
+          ><text>玩家</text><text>买入</text><text>筹码</text
+          ><text>净输赢</text></view
+        ><view wx:for="{{room.results}}" wx:key="id" class="result"
+          ><text>{{item.name}}</text><text>{{item.buyin}}</text
+          ><text>{{item.stack}}</text
+          ><text class="{{item.net>=0?'positive':'negative'}}"
+            >{{item.net}}</text
+          ></view
+        >
+        <view wx:for="{{previousRounds}}" wx:key="number" class="round-record"
+          ><view class="heading"
+            >{{item.testRound?'测试 · ':''}}第 {{item.number}} 场 · {{item.hand}} 手 · 已结束</view
+          ><view
+            wx:for="{{item.results}}"
+            wx:for-item="result"
+            wx:key="id"
+            class="muted line"
+            >{{result.name}} · 买入 {{result.buyin}} · 筹码 {{result.stack}} ·
+            净输赢 {{result.net}}</view
+          ></view
+        >
+        <button wx:if="{{room.completedRoundCount && !previousRounds.length}}" data-panel="history" bindtap="switchPanel">查看往场战绩</button>
+      </view>
+      <view wx:if="{{activePanel==='history'}}" class="section"
+        ><view class="heading">逐手记录</view
+        ><picker
+          range="{{historyRoundOptions}}"
+          range-key="label"
+          value="{{historyRoundIndex}}"
+          bindchange="historyRoundChange"
+          ><view class="mode-picker"
+            >{{historyRoundOptions[historyRoundIndex].label}}</view
+          ></picker
+        >
+        <view wx:if="{{!history.length && !historyLoading && !historyError}}" class="muted"
+          >本场暂无已完成的手牌</view
+        ><view wx:for="{{history}}" wx:key="hand" class="history"
+          ><view>{{item.testRound?'测试 · ':''}}第 {{item.hand}} 手</view
+          ><view class="history-board-note">{{item.boardNote}}</view>
+          <view wx:if="{{item.boardCards.length}}" class="cards history-board">
+            <view
+              wx:for="{{item.boardCards}}"
+              wx:for-item="card"
+              wx:key="index"
+              class="card suit-{{card.colorSuit}} {{card.red?'red':''}}"
+              ><view class="card-rank">{{card.rank}}</view
+              ><view class="card-suit">{{card.suit}}</view></view
+            >
+          </view>
+          <view wx:if="{{item.shownWinners.length}}" class="history-winner-title">赢家亮牌</view>
+          <view wx:if="{{item.shownWinners.length}}" class="history-winners">
+            <view wx:for="{{item.shownWinners}}" wx:for-item="winner" wx:key="id" class="history-winner">
+              <view class="history-winner-name">{{winner.name}}</view>
+              <view class="cards"><view wx:for="{{winner.shownCards}}" wx:for-item="shownCard" wx:key="index" class="card suit-{{shownCard.colorSuit}} {{shownCard.red?'red':''}}"><view class="card-rank">{{shownCard.rank}}</view><view class="card-suit">{{shownCard.suit}}</view></view></view>
+              <view class="history-winner-label">{{winner.handLabel || ''}} · 赢得 {{winner.won}}</view>
+            </view>
+          </view>
+          <view wx:if="{{item.shownPlayers.length}}" class="history-winner-title">主动亮牌</view>
+          <view wx:if="{{item.shownPlayers.length}}" class="history-winners">
+            <view wx:for="{{item.shownPlayers}}" wx:for-item="shown" wx:key="id" class="history-winner">
+              <view class="history-winner-name">{{shown.name}}</view>
+              <view class="cards"><view wx:for="{{shown.shownCards}}" wx:for-item="shownCard" wx:key="index" class="card suit-{{shownCard.colorSuit}} {{shownCard.red?'red':''}}"><view class="card-rank">{{shownCard.rank}}</view><view class="card-suit">{{shownCard.suit}}</view></view></view>
+              <view class="history-winner-label">{{shown.handLabel || '主动亮牌'}}</view>
+            </view>
+          </view>
+          <view wx:if="{{!item.shownWinners.length && !item.shownPlayers.length}}" class="history-winner-note">{{item.shownWinnerNote}}</view>
+          <view
+            wx:for="{{item.pots}}"
+            wx:for-item="pot"
+            wx:key="index"
+            class="muted"
+            >{{pot.winners}} {{pot.refund?'退回':'赢得'}} {{pot.amount}}</view
+          ><view
+            wx:for="{{item.results}}"
+            wx:for-item="r"
+            wx:key="id"
+            class="muted"
+            >{{r.name}} · 买入 {{r.buyin}} · 筹码 {{r.stack}} · 净输赢
+            {{r.net}}</view
+          ></view
+        >
+        <view wx:if="{{historyLoading}}" class="muted" role="status">加载中…</view>
+        <view wx:if="{{historyError}}" class="muted">{{historyError}}</view>
+        <view class="history-pagination">
+          <button wx:if="{{historyError}}" bindtap="retryHistory">重试</button>
+          <button wx:if="{{historyMore}}" disabled="{{historyLoading || historyError}}" bindtap="loadOlderHistory">加载更早记录</button>
+        </view>
+      </view>
+      <view wx:if="{{activePanel==='tournament' && tournament}}" class="section"
+        ><view class="heading">赛事名次</view
+        ><view
+          wx:for="{{tournament.standings}}"
+          wx:key="id"
+          class="standing-row"
+          ><text
+            >{{item.removed?'已移出':item.place ? (item.tied?'并列 ':'')+item.place : '在赛'}}</text
+          ><text>{{item.name}}</text><text>{{item.stack}}</text></view
+        ><view class="format-rules"
+          >{{eventRules}}</view
+        ></view
+      >
+    </scroll-view>
+    <button wx:if="{{room.phase!=='ended'}}" open-type="share">邀请好友</button>
+    <view class="room-footer">好友房 · 虚拟筹码</view>
+    <view wx:if="{{playerPanelOpen}}" class="player-overlay" bindtap="closePlayerPanel">
+      <view class="player-dialog" catchtap="keepPlayerPanel" role="dialog" aria-modal="true">
+        <view class="player-dialog-heading"><view class="profile-avatar"><image wx:if="{{playerProfile.player.avatarUrl}}" src="{{playerProfile.player.avatarUrl}}" mode="aspectFill"/><text wx:else>{{playerProfile.player.avatarText}}</text></view><view class="profile-title"><view class="heading">{{playerProfile.player.name}}</view><view class="muted">{{playerProfile.player.seatNumber?playerProfile.player.seatNumber+' 号位 · ':''}}{{playerProfile.player.status}}</view></view><button size="mini" bindtap="closePlayerPanel" aria-label="关闭牌手资料"><image src="/assets/x.svg"/></button></view>
+        <view wx:if="{{actionable && clockSeconds!==null}}" class="profile-turn {{clockUrgent?'urgent':''}}">轮到你行动 · {{clockSeconds}}</view>
+        <view class="profile-info"><view><text>当前筹码</text><view>{{playerProfile.player.stack}}</view></view><view><text>累计投入</text><view>{{playerProfile.player.buyin}}</view></view><view><text>本场净输赢</text><view>{{playerProfile.player.net}}</view></view><view><text>本手总下注</text><view>{{playerProfile.player.totalBet || 0}}</view></view></view>
+        <view class="profile-stats-heading"><text>全服战绩</text><button size="mini" bindtap="refreshPlayerProfile" disabled="{{profileLoading}}" aria-label="刷新全服战绩"><image src="/assets/refresh-cw.svg"/></button></view>
+        <view wx:if="{{profileLoading}}" class="muted">统计加载中</view><view wx:elif="{{profileError}}" class="muted">{{profileError}}</view>
+        <view wx:elif="{{playerProfile.statistics}}"><view class="profile-stats"><view><text>已统计手数</text><view>{{playerProfile.statistics.hands}}</view></view><view><text>获胜手数</text><view>{{playerProfile.statistics.wins}}</view></view><view><text>全服胜率</text><view>{{playerProfile.rateText}}</view></view></view><view class="muted">{{playerProfile.sinceText}} · 平分计获胜，退款不计胜</view></view>
+        <button wx:if="{{playerProfile.canKick}}" bindtap="kickProfile" disabled="{{!connected}}" class="profile-kick">移出本场</button>
+      </view>
+    </view>
+  </view>
+</view>

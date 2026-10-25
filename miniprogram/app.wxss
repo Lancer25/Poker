@@ -1,0 +1,31 @@
+page {
+  background: #101315;
+  color: #eef3ed;
+  font-family: sans-serif;
+}
+button {
+  border-radius: 6px;
+  font-size: 14px;
+  background: #242d2d;
+  color: #fff;
+  border: 1px solid #4d5d58;
+}
+button::after {
+  border: 0;
+}
+input {
+  padding: 20rpx;
+  background: #101819;
+  border: 1px solid #44524f;
+  border-radius: 6px;
+  color: #fff;
+}
+.primary {
+  background: linear-gradient(180deg, #ffe092 0%, #d4a94b 100%);
+  color: #201a0c;
+  font-weight: 700;
+}
+.muted {
+  color: #a9b9ac;
+  font-size: 24rpx;
+}

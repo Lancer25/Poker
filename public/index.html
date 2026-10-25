@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>好友德州</title>
+    <meta name="theme-color" content="#fbfcfd" />
+    <script src="/theme.js?v=immersive7"></script>
+    <link rel="stylesheet" href="/style.css?v=friends1" />
+    <link rel="stylesheet" href="/game.css?v=modern1" />
+    <link rel="stylesheet" href="/experience.css?v=revealhaptics1" />
+    <link rel="stylesheet" href="/themes.css?v=recovery1" />
+    <link rel="stylesheet" href="/table-ui.css?v=hardening1" />
+    <link rel="stylesheet" href="/replay-ui.css?v=hardening1" />
+    <link rel="stylesheet" href="/room-controls-ui.css?v=hardening1" />
+  </head>
+  <body>
+    <header>
+      <strong class="brand"
+        ><img src="/assets/icons/spade.svg" alt="" />好友德州
+        <small>FRIENDS HOLD'EM</small></strong
+      >
+      <div class="account-bar">
+        <details class="account-menu"><summary aria-label="账号菜单" title="账号菜单"><img src="/assets/icons/user-round.svg" alt="" /></summary><div class="account-menu-content">
+        <span id="accountName" hidden></span
+        ><a id="profileLink" href="/account" hidden>账号管理</a
+        ><a id="adminLink" href="/admin" hidden>管理后台</a
+        ><button id="logout" type="button" hidden>退出登录</button
+        ></div></details><span id="connection">未登录</span>
+      </div>
+    </header>
+    <main>
+      <section id="auth" class="auth-panel">
+        <div class="auth-art" aria-hidden="true"><div class="auth-playing-card">A<span>♠</span></div><div class="auth-playing-card">A<span>♥</span></div><img src="/assets/themes/chips-v1.webp" alt="" /></div>
+        <div class="room-emblem">
+          <img src="/assets/icons/spade.svg" alt="" />
+        </div>
+        <h1>好友德州</h1>
+        <p class="lobby-subtitle">好友私享牌室 · 无限注德州扑克</p>
+        <div class="tabs auth-tabs">
+          <button type="button" data-auth-mode="login" class="selected">
+            登录</button
+          ><button type="button" data-auth-mode="register">注册</button>
+        </div>
+        <p id="transportWarning" class="transport-warning" role="status" hidden></p>
+        <form id="authForm">
+          <div id="registerAvatarField" class="avatar-editor" hidden>
+            <label class="avatar-picker"
+              ><div class="avatar-preview">
+                <img id="registerAvatarPreview" alt="头像预览" hidden /><span
+                  id="registerAvatarFallback"
+                  >?</span
+                >
+              </div>
+              <span>选择头像</span
+              ><input
+                id="registerAvatarFile"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                hidden /></label
+            ><button id="clearRegisterAvatar" type="button">恢复默认</button>
+          </div>
+          <label id="nicknameField" hidden
+            >昵称<input
+              id="authNickname"
+              maxlength="16"
+              autocomplete="nickname"
+          /></label>
+          <label
+            >账号<input
+              id="authUsername"
+              required
+              minlength="3"
+              maxlength="24"
+              autocomplete="username"
+              autocapitalize="none"
+              spellcheck="false"
+          /></label>
+          <label class="password-label"
+            >密码<span class="password-field"><input
+              id="authPassword"
+              aria-label="密码"
+              type="password"
+              required
+              minlength="8"
+              maxlength="128"
+              autocomplete="current-password"
+          /><button id="togglePassword" class="icon-button" type="button" aria-label="显示密码" title="显示密码" aria-pressed="false"><img src="/assets/icons/eye.svg" alt="" /></button></span></label>
+          <label id="inviteCodeField" hidden
+            >邀请码<input
+              id="authInvite"
+              maxlength="32"
+              autocomplete="off"
+              autocapitalize="characters"
+          /></label>
+          <p id="authError" class="form-error" role="alert" hidden></p>
+          <button id="authSubmit" class="primary" type="submit">登录</button>
+        </form>
+        <div class="entry-themes"><span>牌室主题</span><div data-theme-picker></div></div>
+        <p class="entry-footer">好友房 · 虚拟筹码</p>
+      </section>
+      <section id="lobby" hidden>
+        <div class="room-emblem">
+          <img src="/assets/icons/spade.svg" alt="" />
+        </div>
+        <h1>好友牌室</h1>
+        <p>无限注德州扑克 · 最多 9 人 · 虚拟筹码</p>
+        <div class="lobby-theme-row"><div data-theme-picker></div></div>
+        <form id="entry">
+          <div class="lobby-account">
+            <strong id="lobbyNickname"></strong><span id="lobbyUsername"></span>
+          </div>
+          <div class="tabs">
+            <button type="button" data-mode="create" class="selected">
+              创建房间</button
+            ><button type="button" data-mode="join">加入好友房</button>
+          </div>
+          <details id="settings" open><summary>开局设置</summary><div class="room-settings-fields">
+            <label
+              >玩法<select id="gameMode">
+                <option value="friends">好友淘汰局 · 阶梯升盲</option>
+                <option value="standard">标准淘汰赛 · 10 分钟升盲</option>
+                <option value="turbo">快速淘汰赛 · 5 分钟升盲</option>
+              </select></label
+            >
+            <div id="formatRules" class="format-rules">
+              每 3 分钟阶梯升盲，下一手生效 · 无底注 · 补筹码需全员同意
+            </div>
+            <label id="blindIntervalField">升盲间隔（分钟）<input
+              id="blindMinutes" type="number" value="3" min="1" max="30" step="1" required
+            /></label>
+            <label
+              >行动时限（秒）<input
+                id="turnSeconds"
+                type="number"
+                value="30"
+                min="10"
+                max="300"
+                step="1"
+                required
+            /></label>
+            <label
+              >初始筹码<input id="chips" type="number" value="10000" min="100" step="5"
+            /></label>
+            <div class="columns">
+              <label
+                >小盲<input id="small" type="number" value="10" min="5" step="5" max="500" /></label
+              ><label
+                >大盲<input id="big" type="number" value="20" min="5" step="5" max="1000"
+              /></label>
+            </div>
+          </div></details>
+          <label id="joinField" hidden
+            >房间号<input
+              id="roomCode"
+              inputmode="numeric"
+              maxlength="6"
+              placeholder="6 位房间号" /></label
+          ><button class="primary" id="enter">
+            进入牌桌<img
+              class="icon"
+              src="/assets/icons/arrow-right.svg"
+              alt=""
+            />
+          </button>
+        </form>
+        <div id="watchStatus" class="watch-status" role="status" hidden><span id="watchStatusText"></span><button id="cancelWatch" type="button">撤销申请</button></div>
+      </section>
+      <section id="game" hidden>
+        <div class="room-bar">
+          <button
+            id="back"
+            class="icon-button"
+            type="button"
+            aria-label="返回大厅"
+            title="返回大厅"
+          >
+            <img src="/assets/icons/arrow-left.svg" alt="" />
+          </button>
+          <details class="experience-settings" id="experienceSettings">
+            <summary aria-label="体验设置" title="体验设置">
+              <img src="/assets/icons/settings-2.svg" alt="" />
+            </summary>
+            <div class="settings-content">
+              <strong>体验设置</strong>
+              <section id="botSetup" class="bot-setup" aria-label="测试机器人" hidden>
+                <h4>测试机器人</h4>
+                <div class="bot-setup-actions"><label for="botCount">数量</label><input id="botCount" type="number" min="1" max="8" step="1" value="1" aria-label="添加机器人数量" /><button id="addTestBots" type="button"><img src="/assets/icons/bot.svg" alt="" />添加陪练</button></div>
+                <div id="testBotList"></div>
+              </section>
+              <div id="hostSettingsSlot"></div>
+              <div class="settings-themes"><span>牌室主题</span><div data-theme-picker></div></div>
+              <label>游戏音效<input id="soundEnabled" type="checkbox" /></label>
+              <label id="vibrationSetting">震动提醒<input id="vibrationEnabled" type="checkbox" /></label>
+              <label
+                >音量<input
+                  id="soundVolume"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+              /></label>
+              <label
+                >牌桌动效<input id="motionEnabled" type="checkbox"
+              /></label>
+              <label
+                >四色牌面<input id="fourColorEnabled" type="checkbox"
+              /></label>
+              <label id="winnerSetting" hidden>获胜时向他人放大展示<input id="showWinningCards" type="checkbox" checked /></label>
+              <div id="roomControlSettings" hidden></div>
+              <button id="copyDiagnostics" class="diagnostic-command" type="button"><img src="/assets/icons/copy.svg" alt="" />连接诊断</button>
+            </div>
+          </details>
+          <div>
+            <h2>好友房 <span id="code"></span><span id="watchPolicy" class="watch-policy" hidden></span></h2>
+            <span id="meta"></span>
+          </div>
+          <button
+            id="invite"
+            class="icon-button"
+            type="button"
+            aria-label="复制邀请链接"
+            title="复制邀请链接"
+          >
+            <img src="/assets/icons/share-2.svg" alt="" />
+          </button>
+        </div>
+        <div id="tournamentStrip" class="tournament-strip" hidden>
+          <img src="/assets/icons/trophy.svg" alt="" /><strong
+            id="tournamentTitle"
+          ></strong
+          ><span id="tournamentProgress"></span><span id="levelClock"></span
+          ><span id="nextHandClock"></span><span id="nextLevelBlinds"></span
+          ><span id="tournamentPositionNote"></span>
+        </div>
+        <div class="game-layout">
+          <div class="play-surface">
+            <div class="table-wrap">
+              <div class="table-scene">
+              <div class="felt">
+                <div class="table-mark" aria-hidden="true">
+                  <img src="/assets/icons/spade.svg" alt="" /><span
+                    >FRIENDS HOLD'EM</span
+                  >
+                </div>
+              </div>
+              <div id="seats"></div>
+              <div id="tableObjects" aria-label="桌面下注与位置标识"></div>
+              <section id="seatDice" class="table-dice" aria-label="掷骰排座" hidden>
+                <span id="seatDiceStatus" class="table-dice-status" role="status"></span>
+                <div id="seatDiceRows" class="table-dice-members"></div>
+              </section>
+              <div class="center">
+                <span id="stage"></span>
+                <div id="board" class="cards"></div>
+                <strong id="pot"
+                  ><span id="potChips" class="pot-chips"></span><span class="pot-summary"><span class="pot-label">底池</span
+                  ><span id="potValue">0</span></span></strong
+                >
+                <div id="payout" role="status" aria-live="polite"></div>
+                <span id="contribution" class="contribution"></span>
+              </div>
+              <div id="winnerFocus" class="winner-focus" aria-label="本手摊牌赢家" aria-live="polite" hidden>
+                <strong class="winner-focus-title">本手摊牌赢家</strong>
+                <div id="winnerFocusHands" class="winner-focus-hands"></div>
+              </div>
+              </div>
+            </div>
+            <div class="action-dock">
+              <div id="observerControls" class="observer-controls" hidden><div class="observer-copy"><strong id="observerTitle"></strong><span id="observerNotice"></span></div><button id="showObservedCards" type="button">查看底牌</button><button id="viewerManageRoom" class="icon-button" type="button" aria-label="房主管理" title="房主管理" hidden><img src="/assets/icons/settings-2.svg" alt="" /></button></div>
+              <div id="personalHand" class="personal-hand">
+                <div id="myCards" class="cards own"></div>
+                <div class="hand-caption">
+                  <span id="myName"></span><strong id="myStack"></strong>
+                </div>
+              </div>
+              <div class="action-area decision-controls">
+                <div class="action-status">
+                <div id="handSummary" class="hand-summary"><strong id="ownHandLabel"></strong><span id="ownCallPrice"></span></div>
+                <div
+                  id="turnNotice"
+                  class="turn-notice"
+                  aria-live="polite"
+                ></div>
+                </div>
+                <div class="decision-actions"><div id="controls" class="controls"></div>
+                <button id="rollSeatDice" class="dice-command" type="button" hidden><img src="/assets/icons/dices.svg" alt="" /><span id="rollSeatDiceLabel">掷骰子</span></button>
+                </div>
+                <div id="showCardsControls" class="controls" hidden><button id="showCards" type="button">亮出手牌</button><span id="showCardsStatus" role="status"></span></div>
+                <div id="betSizing" class="bet-sizing" hidden>
+                  <dl id="betImpact" class="bet-impact" aria-live="polite"><div><dt>加注至</dt><dd id="betTarget">-</dd></div><div><dt>本次补入</dt><dd id="betAdded">-</dd></div><div><dt>剩余</dt><dd id="betRemaining">-</dd></div></dl>
+                  <div class="bet-presets" id="betPresets"></div>
+                  <div class="bet-amount">
+                    <input
+                      id="betSlider"
+                      type="range"
+                      aria-label="加注金额滑杆"
+                    /><label
+                      >加注至（本轮总额）<span class="amount-stepper"><button id="betDecrease" class="icon-button" type="button" aria-label="减少加注金额" title="减少加注金额"><img src="/assets/icons/minus.svg" alt="" /></button><input
+                        id="betAmount"
+                        type="text"
+                        inputmode="numeric"
+                        pattern="[0-9]+"
+                        autocomplete="off"
+                        aria-label="加注至（本轮总额）"
+                    /><button id="betIncrease" class="icon-button" type="button" aria-label="增加加注金额" title="增加加注金额"><img src="/assets/icons/plus.svg" alt="" /></button></span></label>
+                  </div>
+                </div>
+                <div id="hostControls" class="controls"></div>
+                <div id="godControls" class="god-controls"></div>
+              </div>
+            </div>
+            <div
+              id="godHands"
+              class="god-hands"
+              aria-label="旁观玩家底牌"
+              hidden
+            ></div>
+            <section
+              id="insightSection"
+              class="hand-insight"
+              aria-label="牌面提示"
+            >
+              <label class="insight-toggle"
+                ><input
+                  id="insightEnabled"
+                  type="checkbox"
+                  checked
+                />牌面提示</label
+              >
+              <div id="handInsight" hidden>
+                <div class="insight-heading">
+                  <strong id="handLabel"></strong><span id="handDetail"></span>
+                </div>
+                <details id="insightDetails">
+                  <summary>听牌与判断参考</summary>
+                  <div id="insightDraws"></div>
+                  <div id="insightPrice"></div>
+                  <p id="insightNote"></p>
+                </details>
+              </div>
+              <span id="insightEmpty" class="insight-empty">发牌后显示</span>
+              <section id="forecastPanel" class="hand-forecast" hidden aria-label="河牌潜力预测">
+                <div class="forecast-heading"><strong>河牌潜力预测</strong><span id="forecastMethod"></span></div>
+                <p id="forecastStatus" role="status"></p>
+                <div id="forecastBody" hidden><strong id="forecastCeiling"></strong><div id="forecastTop"></div><details><summary>全部牌型概率</summary><div id="forecastAll"></div></details><p id="forecastNote" class="muted"></p></div>
+              </section>
+            </section>
+          </div>
+          <aside class="room-tools">
+            <div class="drawer-heading"><strong id="drawerTitle">牌桌动态</strong><button id="closeTools" type="button" class="icon-button" aria-label="关闭面板" title="关闭面板"><img src="/assets/icons/x.svg" alt="" /></button></div>
+            <div class="tool-tabs" role="tablist" aria-label="房间信息">
+              <button
+                id="tab-activity"
+                type="button"
+                role="tab"
+                data-panel="activity"
+                aria-selected="true"
+                aria-controls="panel-activity"
+                tabindex="0"
+              >
+                <img src="/assets/icons/activity.svg" alt="" /><span>动态</span>
+              </button>
+              <button
+                id="tab-chips"
+                type="button"
+                role="tab"
+                data-panel="chips"
+                aria-selected="false"
+                aria-controls="panel-chips"
+                tabindex="-1"
+              >
+                <img src="/assets/icons/coins.svg" alt="" /><span>筹码</span
+                ><span id="requestBadge" hidden></span>
+              </button>
+              <button
+                id="tab-results"
+                type="button"
+                role="tab"
+                data-panel="results"
+                aria-selected="false"
+                aria-controls="panel-results"
+                tabindex="-1"
+              >
+                <img src="/assets/icons/chart-no-axes-column.svg" alt="" /><span
+                  >战绩</span
+                >
+              </button>
+              <button
+                id="tab-history"
+                type="button"
+                role="tab"
+                data-panel="history"
+                aria-selected="false"
+                aria-controls="panel-history"
+                tabindex="-1"
+              >
+                <img src="/assets/icons/history.svg" alt="" /><span>记录</span>
+              </button>
+              <button
+                id="tab-tournament"
+                type="button"
+                role="tab"
+                data-panel="tournament"
+                aria-selected="false"
+                aria-controls="panel-tournament"
+                tabindex="-1"
+                hidden
+              >
+                <img src="/assets/icons/trophy.svg" alt="" /><span>赛事</span>
+              </button>
+              <button id="tab-insight" type="button" role="tab" data-panel="insight" aria-selected="false" aria-controls="panel-insight" tabindex="-1"><img src="/assets/icons/scan-eye.svg" alt="" /><span>牌面</span></button>
+            </div>
+            <section
+              id="panel-activity"
+              role="tabpanel"
+              aria-labelledby="tab-activity"
+              tabindex="0"
+              class="tool-panel"
+            >
+              <h3>牌桌动态<span class="live-label">LIVE</span></h3>
+              <div id="log"></div>
+              <details id="seatDiceHistory" hidden><summary>排座点数</summary><div id="seatDiceHistoryRows"></div></details>
+            </section>
+            <section
+              id="panel-chips"
+              role="tabpanel"
+              aria-labelledby="tab-chips"
+              tabindex="0"
+              class="tool-panel"
+              hidden
+            >
+              <details id="friendManager" class="friend-manager" hidden><summary>房间管理</summary><div id="friendMembers"></div></details>
+              <h3>筹码管理</h3>
+              <div id="roomControls" hidden></div>
+              <form id="rebuy">
+                <input
+                  id="rebuyAmount"
+                  type="number"
+                  value="1000"
+                  min="1"
+                  aria-label="补充筹码"
+                /><button>申请补充</button>
+              </form>
+              <div id="requests"></div>
+            </section>
+            <section
+              id="panel-results"
+              role="tabpanel"
+              aria-labelledby="tab-results"
+              tabindex="0"
+              class="tool-panel"
+              hidden
+            >
+              <h3>本场战绩</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>玩家</th>
+                    <th>累计买入</th>
+                    <th>当前筹码</th>
+                    <th>净输赢</th>
+                  </tr>
+                </thead>
+                <tbody id="results"></tbody>
+              </table>
+              <div id="completedRounds"></div>
+              <button id="openRoundHistory" type="button" hidden>查看往场战绩</button>
+            </section>
+            <section
+              id="panel-history"
+              role="tabpanel"
+              aria-labelledby="tab-history"
+              tabindex="0"
+              class="tool-panel"
+              hidden
+            >
+              <h3>逐手记录</h3>
+              <label class="round-selector"
+                >场次<select
+                  id="historyRoundSelect"
+                  aria-label="历史场次"
+                ></select
+              ></label>
+              <div id="history"></div>
+              <div id="historyStatus" role="status" aria-live="polite"></div>
+              <div class="history-pagination">
+                <button id="historyRetry" type="button" hidden>重试</button>
+                <button id="historyMore" type="button" hidden>加载更早记录</button>
+              </div>
+            </section>
+            <section
+              id="panel-tournament"
+              role="tabpanel"
+              aria-labelledby="tab-tournament"
+              tabindex="0"
+              class="tool-panel"
+              hidden
+            >
+              <h3>赛事名次</h3>
+              <div id="standings"></div>
+              <details class="tournament-rules">
+                <summary>本桌赛制</summary>
+                <div id="eventRules"></div>
+                <a
+                  href="https://www.pokertda.com/view-poker-tda-rules/"
+                  target="_blank"
+                  rel="noopener"
+                  >规则参考：Poker TDA</a
+                >
+                <div class="rule-attribution">
+                  TDA rules used by permission of the Poker TDA, Copyright 2026,
+                  <a
+                    href="https://www.pokertda.com/"
+                    target="_blank"
+                    rel="noopener"
+                    >www.pokertda.com</a
+                  >, All rights reserved.
+                </div>
+              </details>
+            </section>
+            <div class="room-footer">好友房 · 虚拟筹码</div>
+            <section id="panel-insight" role="tabpanel" aria-labelledby="tab-insight" tabindex="0" class="tool-panel" hidden><h3>牌面与预测</h3></section>
+          </aside>
+        </div>
+      </section>
+      <div id="toast" role="alert" hidden></div>
+      <button id="drawerBackdrop" class="drawer-backdrop" type="button" aria-label="关闭面板" hidden></button>
+      <div id="playerDialog" class="player-overlay" hidden>
+        <section class="player-dialog" role="dialog" aria-modal="true" aria-labelledby="playerTitle">
+          <div class="player-dialog-heading"><div id="profileAvatar" class="profile-avatar"></div><div><h3 id="playerTitle"></h3><span id="profileStatus" class="muted"></span></div><button id="closePlayerDialog" type="button" class="icon-button" aria-label="关闭牌手资料" title="关闭"><img src="/assets/icons/x.svg" alt="" /></button></div>
+          <div id="profileTurn" class="profile-turn" hidden></div>
+          <dl id="profileInfo" class="profile-info"></dl>
+          <div class="profile-stats-heading"><h4>全服战绩</h4><button id="refreshPlayerStats" class="icon-button" type="button" aria-label="刷新全服战绩" title="刷新"><img src="/assets/icons/refresh-cw.svg" alt="" /></button></div>
+          <div id="profileStats" class="profile-stats" aria-live="polite"></div><p id="profileStatsNote" class="muted"></p>
+          <button id="profileKick" type="button" class="profile-kick" hidden>移出本场</button>
+        </section>
+      </div>
+    </main>
+    <script src="/table-layout.js?v=seats1"></script>
+    <script src="/table-experience.js?v=hardening1"></script>
+    <script src="/room-history.js?v=historywindow1"></script>
+    <script src="/player-latency.js?v=playerlatency1"></script>
+    <script src="/forecast-state.js?v=playerforecast1"></script>
+    <dialog id="raiseDialog" aria-labelledby="raiseTitle">
+      <div class="raise-heading"><h3 id="raiseTitle">加注</h3><button id="closeRaise" class="icon-button" type="button" aria-label="关闭加注面板" title="关闭加注面板" autofocus><img src="/assets/icons/x.svg" alt="" /></button></div>
+      <div id="raiseSlot"></div><p id="raiseError" role="alert" hidden></p><button id="confirmRaise" class="primary" type="button">确认加注</button>
+    </dialog>
+    <dialog id="winnerDialog" aria-labelledby="winnerDialogTitle">
+      <div class="raise-heading"><h3 id="winnerDialogTitle">赢家底牌</h3><button id="closeWinnerDialog" class="icon-button" type="button" aria-label="关闭赢家底牌" title="关闭" autofocus><img src="/assets/icons/x.svg" alt="" /></button></div>
+      <div id="winnerDialogHands"></div>
+    </dialog>
+    <dialog id="diagnosticDialog" aria-labelledby="diagnosticTitle"><div class="raise-heading"><h3 id="diagnosticTitle">连接诊断</h3><button id="closeDiagnostic" type="button" class="icon-button" aria-label="关闭连接诊断" title="关闭"><img src="/assets/icons/x.svg" alt="" /></button></div><textarea id="diagnosticText" readonly rows="12" aria-label="连接诊断内容"></textarea></dialog>
+    <script type="module" src="/app.js?v=upright1"></script>
+  </body>
+</html>

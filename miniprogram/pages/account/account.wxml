@@ -1,0 +1,66 @@
+<view class="account-page">
+  <view class="account-title">账号管理</view>
+  <view wx:if="{{ready}}">
+    <view class="avatar-editor"
+      ><button
+        open-type="chooseAvatar"
+        bindchooseavatar="chooseAvatar"
+        disabled="{{busy || avatarBusy}}"
+      >
+        <image
+          wx:if="{{avatarPreview}}"
+          src="{{avatarPreview}}"
+          mode="aspectFill"
+          class="avatar-preview"
+        />选择头像</button
+      ><button size="mini" bindtap="clearAvatar">恢复默认</button></view
+    >
+    <view class="label">昵称</view
+    ><input
+      value="{{nickname}}"
+      data-field="nickname"
+      bindinput="input"
+      maxlength="16"
+    />
+    <view class="label">登录账号</view
+    ><input
+      value="{{username}}"
+      data-field="username"
+      bindinput="input"
+      maxlength="24"
+    />
+    <view class="label">当前密码</view
+    ><input
+      value="{{currentPassword}}"
+      data-field="currentPassword"
+      bindinput="input"
+      password="{{true}}"
+      maxlength="128"
+    />
+    <view class="label">新密码</view
+    ><input
+      value="{{newPassword}}"
+      data-field="newPassword"
+      bindinput="input"
+      password="{{true}}"
+      maxlength="128"
+    />
+    <view class="label">确认新密码</view
+    ><input
+      value="{{confirmPassword}}"
+      data-field="confirmPassword"
+      bindinput="input"
+      password="{{true}}"
+      maxlength="128"
+    />
+    <button
+      class="primary"
+      bindtap="save"
+      loading="{{busy}}"
+      disabled="{{busy || avatarBusy}}"
+    >
+      保存修改
+    </button>
+  </view>
+  <view wx:if="{{error}}" class="error">{{error}}</view>
+</view>

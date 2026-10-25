@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>好友德州 · 账号管理</title>
+    <script src="/theme.js?v=immersive7"></script>
+    <link rel="stylesheet" href="/style.css?v=account1" />
+    <link rel="stylesheet" href="/account.css?v=avatar1" />
+    <link rel="stylesheet" href="/themes.css?v=settlement2" />
+  </head>
+  <body>
+    <header>
+      <strong>好友德州 <small>账号管理</small></strong
+      ><a href="/">返回牌桌</a>
+    </header>
+    <main>
+      <h1>账号管理</h1>
+      <div class="entry-themes"><span>牌室主题</span><div data-theme-picker></div></div>
+      <form id="profileForm" hidden>
+        <div class="avatar-editor">
+          <label class="avatar-picker"
+            ><div class="avatar-preview">
+              <img id="avatarPreview" alt="头像预览" hidden /><span
+                id="avatarFallback"
+                >?</span
+              >
+            </div>
+            <span>选择头像</span
+            ><input
+              id="avatarFile"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              hidden /></label
+          ><button id="clearAvatar" type="button">恢复默认</button>
+        </div>
+        <label
+          >昵称<input
+            id="nickname"
+            required
+            maxlength="16"
+            autocomplete="nickname"
+        /></label>
+        <label
+          >登录账号<input
+            id="username"
+            required
+            minlength="3"
+            maxlength="24"
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
+        /></label>
+        <label
+          >当前密码<input
+            id="currentPassword"
+            type="password"
+            maxlength="128"
+            autocomplete="current-password"
+        /></label>
+        <label
+          >新密码<input
+            id="newPassword"
+            type="password"
+            minlength="8"
+            maxlength="128"
+            autocomplete="new-password"
+        /></label>
+        <label
+          >确认新密码<input
+            id="confirmPassword"
+            type="password"
+            minlength="8"
+            maxlength="128"
+            autocomplete="new-password"
+        /></label>
+        <button id="saveProfile" class="primary" type="submit">保存修改</button>
+      </form>
+      <p id="profileStatus" role="status" aria-live="polite">正在加载账号…</p>
+      <a id="reauthenticate" href="/" hidden>重新登录</a>
+    </main>
+    <script type="module" src="/account.js?v=themes1"></script>
+  </body>
+</html>

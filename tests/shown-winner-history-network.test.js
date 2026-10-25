@@ -1,0 +1,21 @@
+import {startHand} from './game-helpers.js';
+import test from 'node:test';import assert from 'node:assert/strict';import {spawn} from 'node:child_process';import {mkdtempSync,readFileSync,writeFileSync,rmSync} from 'node:fs';import {tmpdir} from 'node:os';import path from 'node:path';import {once} from 'node:events';import {setTimeout as delay} from 'node:timers/promises';import { WebSocket } from "./protocol-peer.js";
+import {createRoom,joinRoom} from '../server/game.js';import {seedAccounts,testPassword,apiAt} from './auth-helpers.js';
+test('shown winner history survives real settlement/restart/rematch; HTTP viewers get public snapshots only',{timeout:15000},async t=>{
+ const dir=mkdtempSync(path.join(tmpdir(),'holdem-shown-history-'));const {store,admin,invite}=await seedAccounts(dir),auth=[store.startSession(admin.id)];for(let i=1;i<4;i++)auth.push(await store.register({username:'shown_'+i,nickname:'P'+i,password:testPassword,inviteCode:invite.code}));
+ const r=createRoom('Host',undefined,undefined,undefined,300,'friends').room;joinRoom(r,'P1');joinRoom(r,'P2');r.players.forEach((p,i)=>p.accountId=auth[i].user.id);startHand(r,r.host);r.phase='river';r.turn=0;r.currentBet=100;r.board=['As','Ks','Qs','Js','Ts'];const holes=[['2c','3c'],['4c','5c'],['6c','7d']];r.players.forEach((p,i)=>Object.assign(p,{cards:holes[i],total:100,bet:100,stack:9900,actedAt:i?100:null,inHand:true,folded:false}));r.players[1].showWinningCards=false;
+ writeFileSync(dir+'/rooms.json',JSON.stringify({rooms:[r],sessions:[]}));let child,port;const peers=[];
+ async function stop(){for(const p of peers)p.ws.terminate();if(child?.exitCode===null){const done=once(child,'exit');child.kill();await done;}}
+ t.after(async()=>{await stop();assert.equal(path.dirname(dir),path.resolve(tmpdir()));rmSync(dir,{recursive:true,force:true});});
+ async function boot(){child=spawn(process.execPath,['server/index.js'],{env:{...process.env,PORT:'0',DATA_DIR:dir},stdio:['ignore','pipe','pipe']});port=Number((await once(child.stdout,'data'))[0].toString().match(/localhost:(\d+)/)[1]);}
+ async function until(check){const end=Date.now()+5000;while(!check()){if(Date.now()>end)throw Error('Shown history timeout');await delay(5);}}
+ async function client(index,watch=false){const ws=new WebSocket('ws://127.0.0.1:'+port),p={ws,state:null,queue:[],send(type,data={}){ws.send(JSON.stringify({type,...data}));}};peers.push(p);ws.on('message',raw=>{const m=JSON.parse(raw);if(m.type==='state')p.state=m.room;else p.queue.push(m);});await once(ws,'open');p.send('authenticate',{token:auth[index].token,compactState:true});await until(()=>p.queue.some(m=>m.type==='account'));p.send(watch?'watch':'resume',{room:r.id});await until(()=>p.state);return p;}
+ await boot();let host=await client(0);const observer=await client(3,true);host.send('check');await until(()=>host.state.phase==='showdown'&&observer.state.phase==='showdown');assert.equal(host.state.history,undefined);
+ const url='/api/rooms/'+r.id+'/history';const owner=await apiAt(port,url,'GET',undefined,auth[1].token),watched=await apiAt(port,url,'GET',undefined,auth[3].token);assert.equal(owner.status,200);assert.deepEqual(owner.data.hands[0].shownWinners,watched.data.hands[0].shownWinners);
+ const shown=owner.data.hands[0].shownWinners;assert.deepEqual(new Set(shown.map(w=>w.id)),new Set([r.players[0].id,r.players[2].id]));assert.ok(shown.every(w=>w.cards.length===2));assert.ok(owner.data.hands[0].results.every(p=>!Object.hasOwn(p,'cards')));assert.equal(JSON.stringify(owner.data).includes('"deck"'),false);
+ host.send('winningcards',{enabled:false});await until(()=>host.state.showWinningCards===false);const expected=JSON.stringify(shown);await stop();await boot();
+ assert.equal(JSON.stringify((await apiAt(port,url,'GET',undefined,auth[1].token)).data.hands[0].shownWinners),expected);
+ host=await client(0);host.send('end');await until(()=>host.state.phase==='ended');host.send('restart',{round:1});await until(()=>host.state.roundNumber===2);
+ const previous=await apiAt(port,url+'?round=1','GET',undefined,auth[1].token);assert.equal(JSON.stringify(previous.data.hands[0].shownWinners),expected);
+ const stored=JSON.parse(readFileSync(dir+'/rooms.json')).rooms[0];assert.equal(stored.completedRounds[0].history[0].shownWinners.length,2);
+});

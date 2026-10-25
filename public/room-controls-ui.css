@@ -1,0 +1,34 @@
+.room-controls, .room-control-settings { color:var(--ink); font-size:12px; line-height:1.5; min-width:0; }
+.room-controls[hidden], .room-control-settings[hidden] { display:none; }
+.room-controls { border-top:1px solid var(--line); padding:8px 0; }
+.room-controls-status, .room-controls-actions, .room-control-settings { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; }
+.room-controls-status strong { font-size:12px; font-weight:600; overflow-wrap:anywhere; }
+.room-controls-connection, .room-controls-pause { color:var(--muted); }
+.room-controls[data-connected=false] .room-controls-connection, .room-controls-error { color:var(--negative); }
+.room-controls-error:empty { display:none; }
+.room-controls-actions { margin-top:6px; }
+.room-control-toggle, .room-control-select { display:inline-flex; align-items:center; gap:6px; min-width:0; }
+.room-control-toggle { min-height:36px; cursor:pointer; }
+.room-control-toggle input { width:16px; height:16px; margin:0; accent-color:var(--accent); flex:none; }
+.room-control-select { flex-wrap:wrap; }
+.room-control-select select { max-width:100%; min-height:36px; border:1px solid var(--line); border-radius:4px; background:var(--input-bg); color:var(--ink); font:inherit; padding:4px 6px; }
+.room-controls button, .room-control-settings button { display:inline-flex; justify-content:center; align-items:center; flex:none; min-height:36px; margin:0; border:1px solid var(--line); border-radius:4px; background:var(--input-bg); color:var(--ink); font:inherit; cursor:pointer; }
+.room-control-icon { width:36px; height:36px; padding:8px; }
+.room-control-icon img { display:block; width:18px; height:18px; object-fit:contain; filter:var(--icon-filter); }
+.room-control-command { padding:6px 10px; max-width:100%; white-space:normal; overflow-wrap:anywhere; }
+.room-controls button:hover, .room-control-settings button:hover { border-color:var(--accent); }
+.room-controls :is(button,input,select):focus-visible, .room-control-settings :is(button,input,select):focus-visible { outline:2px solid var(--focus); outline-offset:2px; }
+.room-controls :disabled, .room-control-settings :disabled { opacity:.5; cursor:default; }
+.room-controls-seats { display:flex; flex-wrap:wrap; gap:4px 16px; padding:0; margin:6px 0; list-style:none; }
+.room-control-seat { display:flex; align-items:baseline; gap:6px; min-width:0; max-width:100%; color:var(--muted); }
+.room-control-seat[data-ready=true] { color:var(--positive); }
+.room-control-seat[data-away=true] { color:var(--muted); }
+.room-control-name { min-width:0; overflow-wrap:anywhere; }
+.room-control-seat > span:last-child { flex:none; }
+.room-control-request { display:flex; align-items:center; gap:6px; min-width:0; width:100%; }
+.room-control-request .room-control-name { flex:1; }
+@media (max-width:480px) {
+  .room-controls-status { align-items:flex-start; }
+  .room-control-settings { gap:6px 10px; }
+  .room-controls-actions { gap:4px 10px; }
+}

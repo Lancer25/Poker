@@ -1,0 +1,26 @@
+name: Bug report
+description: Report a reproducible game or interface problem.
+body:
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Use fictional accounts and a minimal local room.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Node version, browser or WeChat version, OS, commit.
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized logs or screenshots
+      description: Never include credentials, tokens, private cards, accounts or room data.

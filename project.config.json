@@ -1,0 +1,8 @@
+{
+  "description": "好友德州",
+  "miniprogramRoot": "miniprogram/",
+  "compileType": "miniprogram",
+  "appid": "touristappid",
+  "projectname": "friends-holdem",
+  "setting": { "urlCheck": false, "es6": true, "enhance": true }
+}

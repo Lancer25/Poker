@@ -1,0 +1,63 @@
+.hand-replay {
+  box-sizing: border-box;
+  width: min(680px, calc(100% - 24px));
+  max-height: calc(100dvh - 24px - var(--safe-top, 0px) - var(--safe-bottom, 0px));
+  margin: auto;
+  padding: 16px;
+  overflow: hidden;
+  border: 1px solid var(--line, #cbd5d8);
+  border-radius: 8px;
+  background: var(--surface, #fbfcfd);
+  color: var(--ink, #25343d);
+  font-size: 14px;
+  letter-spacing: 0;
+}
+.hand-replay::backdrop { background: #0009; }
+.hand-replay[open] { display: flex; flex-direction: column; }
+.hand-replay .replay-content { min-height: 0; overflow-y: auto; }
+.hand-replay .replay-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.hand-replay .replay-heading, .hand-replay .replay-controls { flex-shrink: 0; }
+.hand-replay h2 { margin: 0; font-size: 18px; overflow-wrap: anywhere; }
+.hand-replay h3 { font-size: 14px; margin: 12px 0 8px; }
+.hand-replay .replay-note, .hand-replay .replay-step-status { color: var(--muted, #62747b); }
+.hand-replay .replay-step-status { min-height: 22px; }
+.hand-replay .replay-icon-button {
+  display: grid; place-items: center; flex: 0 0 44px;
+  box-sizing: border-box; width: 44px; height: 44px; min-height: 44px; padding: 0;
+  border: 1px solid var(--line, #cbd5d8); border-radius: 6px;
+  color: var(--ink, #25343d); background: var(--surface-2, #e6ebed);
+}
+.hand-replay .replay-icon-button img { display: block; width: 20px; height: 20px; filter: var(--icon-filter, none); }
+.hand-replay .replay-icon-button:focus-visible, .hand-replay input:focus-visible, .hand-replay .replay-table-scroll:focus-visible { outline: 2px solid var(--focus, #00816f); outline-offset: 2px; }
+.hand-replay .replay-icon-button:disabled { opacity: .4; }
+.hand-replay .replay-icon-button:hover:not(:disabled) { border-color: var(--focus, #00816f); }
+.hand-replay .replay-board { padding: 12px 0 20px; }
+.hand-replay .replay-cards { display: flex; align-items: center; gap: 6px; }
+.hand-replay .replay-card {
+  box-sizing: border-box; flex: 0 0 38px; width: 38px; height: 54px;
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 4px; border: 1px solid #bbc6ce; border-radius: 4px;
+  background: #fff; color: #18252b; font-size: 16px; line-height: 1;
+}
+.hand-replay .replay-card img { display: block; width: 18px; height: 18px; align-self: flex-end; }
+.hand-replay .replay-card[data-suit=h] img, .hand-replay .replay-card[data-suit=d] img { filter: invert(25%) sepia(80%) saturate(1600%) hue-rotate(325deg); }
+.hand-replay .replay-card[data-suit=h], .hand-replay .replay-card[data-suit=d] { color: #bd3348; }
+.hand-replay .replay-card-empty { border-style: dashed; background: var(--surface-2, #e6ebed); opacity: .6; }
+.hand-replay .replay-table-scroll { overflow-x: auto; }
+.hand-replay .replay-players { width: 100%; min-width: 450px; border-collapse: collapse; table-layout: fixed; font-size: 12px; }
+.hand-replay .replay-players td:not(:first-child) { white-space: nowrap; }
+.hand-replay .replay-players th, .hand-replay .replay-players td { padding: 10px 4px; text-align: right; border-bottom: 1px solid var(--line, #cbd5d8); overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.hand-replay .replay-players th:first-child, .hand-replay .replay-players td:first-child { width: 25%; text-align: left; }
+.hand-replay .replay-players tr[data-folded=true] { color: var(--muted, #62747b); }
+.hand-replay .replay-settlement p { margin: 8px 0; overflow-wrap: anywhere; }
+.hand-replay .replay-reveal { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line, #cbd5d8); }
+.hand-replay .replay-reveal-name { flex: 1 1 100px; overflow-wrap: anywhere; }
+.hand-replay .replay-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 16px; }
+.hand-replay .replay-scrub { flex: 1 1 120px; width: 120px; min-width: 0; min-height: 44px; padding: 0; accent-color: var(--accent, #058a79); }
+.hand-replay .replay-counter { flex: 0 0 76px; text-align: right; font-variant-numeric: tabular-nums; }
+.hand-replay .replay-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 420px) {
+  .hand-replay { padding: 12px; }
+  .hand-replay .replay-scrub { order: 1; flex-basis: 100%; width: 100%; }
+  .hand-replay .replay-counter { margin-left: auto; }
+}

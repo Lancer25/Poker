@@ -1,0 +1,10 @@
+{
+  "pages": ["pages/table/table", "pages/account/account"],
+  "window": {
+    "navigationBarTitleText": "好友德州",
+    "navigationBarBackgroundColor": "#171d1b",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#171d1b"
+  },
+  "style": "v2"
+}

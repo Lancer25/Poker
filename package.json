@@ -14,7 +14,7 @@
   "dependencies": {
     "pokersolver": "2.1.4",
     "sharp": "^0.35.5",
-    "ws": "^8.18.0"
+    "ws": "^8.22.1"
   },
   "devDependencies": {
     "lucide-static": "^1.54.0"

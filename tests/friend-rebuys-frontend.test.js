@@ -2,13 +2,14 @@ import test from 'node:test';import assert from 'node:assert/strict';import fs f
 function harness(){
  const sent=[];
  class Element {
-  constructor(){this.children=[];this.textContent='';this.hidden=false;this.disabled=false;}
+  constructor(){this.children=[];this.textContent='';this.hidden=false;this.disabled=false;this.dataset={};this.options=[];}
   append(...nodes){this.children.push(...nodes);}
   replaceChildren(...nodes){this.children=nodes;}
   setAttribute(k,v){this[k]=v;}
   querySelector(){return this.submit;}
  }
- const nodes=Object.fromEntries(['rebuy','rebuyAmount','requests','requestBadge','tab-chips'].map(id=>[id,new Element()]));nodes.rebuy.submit=new Element();
+ const nodes=Object.fromEntries(['rebuy','rebuyAmount','friendRebuyMultiplier','requests','requestBadge','tab-chips'].map(id=>[id,new Element()]));nodes.rebuy.submit=new Element();
+ nodes.friendRebuyMultiplier.options=[1,2,3,4,5].map(n=>({value:String(n)}));
  const source=fs.readFileSync('public/app.js','utf8'),code=source.slice(source.indexOf('function renderRebuyRequests('),source.indexOf('function render()'));
  const context={$:id=>nodes[id],document:{createElement:()=>new Element()},button:(label,type,data,disabled)=>{const e=new Element();e.textContent=label;e.disabled=disabled;e.onclick=()=>sent.push({type,...data});return e;}};
  vm.createContext(context);vm.runInContext(fs.readFileSync('miniprogram/utils/table-experience.js','utf8'),context);context.chipUnit=context.TableExperience.chipUnit;vm.runInContext(code,context);
@@ -20,6 +21,8 @@ test('web non-host sees correct progress and vote commands, applicant sees fixed
  const row=nodes.requests.children[0];assert.equal(row.children[1].textContent,'已同意 1/2');row.children[3].onclick();assert.equal(sent[0].type,'approve');assert.equal(sent[0].request,'q');row.children[4].onclick();assert.equal(sent[1].type,'reject');
  r.me='c';r.requests[0].canApprove=false;r.requests[0].canCancel=true;render();nodes.requests.children[0].children.at(-1).onclick();assert.equal(sent.at(-1).type,'cancelrebuy');
  r.requests=[];r.canRequestRebuy=true;render();assert.equal(nodes.rebuy.hidden,false);assert.equal(nodes.rebuy.submit.textContent,'申请补充 10000');
+ nodes.friendRebuyMultiplier.value='5';render();assert.equal(nodes.rebuyAmount.value,50000);assert.equal(nodes.rebuy.submit.textContent,'申请补充 50000');assert.equal(nodes.friendRebuyMultiplier.hidden,false);
+ render();assert.equal(nodes.friendRebuyMultiplier.value,'5');r.roundNumber=2;render();assert.equal(nodes.friendRebuyMultiplier.value,'1');
  r.requests=[{id:'q',kind:'friend-rebuy',player:'c',amount:10000,status:'approved',voters:['a','b'],approvals:['a','b'],votes:[],canApprove:false,canCancel:true}];r.canRequestRebuy=false;render();assert.equal(nodes.requests.children[0].children[1].textContent,'全员通过 · 下一手到账');
 });
 test('web cash host approval remains independent, and standards have no rebuy form',()=>{

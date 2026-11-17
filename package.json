@@ -9,7 +9,7 @@
   "type": "module",
   "scripts": {
     "start": "node server/index.js",
-    "test": "node --test"
+    "test": "node --test tests/*.test.js"
   },
   "dependencies": {
     "pokersolver": "2.1.4",

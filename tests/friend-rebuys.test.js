@@ -14,6 +14,22 @@ function table(n=4,busted=[1]){
 }
 const ask=(r,p=r.players[1])=>{command(r,p.id,'rebuy',{amount:r.initial});return r.requests.find(x=>x.player===p.id);};
 const agree=(r,req)=>{for(const id of req.voters)command(r,id,'approve',{request:req.id});};
+
+test('friend rebuys allow one to five initial stacks, survive recovery and credit exactly once',()=>{
+ for(const multiplier of [1,2,3,4,5]){
+  let r=table();const id=r.players[1].id,amount=r.initial*multiplier,before=r.tournament.totalChips;
+  command(r,id,'rebuy',{amount});r=JSON.parse(JSON.stringify(r));const req=r.requests[0];
+  assert.equal(snapshot(r,id).requests[0].multiplier,multiplier);agree(r,req);
+  advanceTournament(r,r.tournament.nextHandAt);const p=r.players.find(p=>p.id===id);
+  assert.equal(p.buyin,10000+amount);assert.equal(p.stack+p.total,amount);assert.equal(r.tournament.totalChips,before+amount);
+  assert.equal(r.requests.length,0);assert.equal(r.players.reduce((n,p)=>n+p.stack+p.total,0),r.tournament.totalChips);
+ }
+});
+test('fractional, malformed, oversized and overflow friend rebuys never enqueue',()=>{
+ const r=table(),p=r.players[1];
+ for(const amount of [0,-10000,1,15000,50001,60000,NaN,Infinity,'20000',null,20000.5])assert.throws(()=>command(r,p.id,'rebuy',{amount}),/初始/);
+ assert.equal(r.requests.length,0);p.buyin=99990000;assert.throws(()=>command(r,p.id,'rebuy',{amount:20000}),/上限/);assert.equal(r.requests.length,0);
+});
 test('friends fixed settled-bust eligibility, all-in seats remain voters, host has no bypass',()=>{
  const r=table(),p=r.players[1];
  assert.equal(snapshot(r,p.id).canRequestRebuy,true);assert.throws(()=>command(r,r.host,'rebuy',{amount:r.initial}),/淘汰/);

@@ -691,8 +691,14 @@ function renderRebuyRequests(r) {
   $('rebuyAmount').hidden=friends;
   $('rebuyAmount').disabled=friends;
   $('rebuyAmount').step=chipUnit(r);
-  if(friends)$('rebuyAmount').value=r.initial;
-  $('rebuy').querySelector('button').textContent=friends ? `申请补充 ${r.initial}` : '申请补充';
+  const multiple=$('friendRebuyMultiplier');multiple.hidden=!friends;
+  const context=`${r.id}:${r.roundNumber||1}:${r.me}:${r.initial}`;
+  if(multiple.dataset.context!==context){multiple.dataset.context=context;multiple.value='1';}
+  const multiplier=Number(multiple.value)||1;
+  for(const option of multiple.options)option.textContent=`${option.value} 倍 · ${(r.initial*Number(option.value)).toLocaleString()}`;
+  multiple.disabled=!r.canRequestRebuy;
+  if(friends)$('rebuyAmount').value=r.initial*multiplier;
+  $('rebuy').querySelector('button').textContent=friends ? `申请补充 ${r.initial*multiplier}` : '申请补充';
   $('requests').replaceChildren();
   $('requestBadge').hidden=!r.requests.length;
   $('requestBadge').textContent=r.requests.length;
@@ -701,7 +707,7 @@ function renderRebuyRequests(r) {
     const row=document.createElement('div');
     const name=r.players.find(p=>p.id===req.player)?.name || '';
     const title=document.createElement('div');
-    title.textContent=`${name} 申请 ${req.amount}`;
+    title.textContent=`${name} 申请 ${req.amount}${req.kind==='friend-rebuy'?`（${req.amount/r.initial} 倍）`:''}`;
     row.append(title);
     if(req.kind==='friend-rebuy') {
       const progress=document.createElement('div');progress.className='rebuy-progress';
@@ -869,6 +875,7 @@ function render() {
   if (r.tournament?.completed) $("stage").textContent = "冠军已产生";
   else if (r.tournament?.cancelled) $("stage").textContent = "比赛已取消";
   if(r.flopReveal)$("stage").textContent=`翻牌中 ${r.board.length}/3`;
+  if(r.phase==='preflop' && r.tournament?.deadSmallBlind)$("stage").textContent+=' · 本手无小盲';
   $("potValue").textContent = r.pot.toLocaleString();
   $("payout").textContent = ["showdown", "ended"].includes(r.phase)
     ? r.pots
@@ -1489,7 +1496,7 @@ function renderTournament() {
   );
   $("eventRules").textContent =
     state.gameMode === "friends"
-      ? `初始 ${state.initial} 筹码；${t.blindStructure === "gentle3" ? `每 ${t.levelDurationSeconds / 60} 分钟阶梯升盲，前 20 分钟上限 ${caps.earlySmall}/${caps.earlySmall * 2}（小盲为初始筹码的 1/20），最终最高 ${caps.small}/${caps.small * 2}（小盲为初始筹码的 1/10，向下取整），达到后不再升盲，一手最多升一级，下一手生效` : timedFriends(state) ? `从第一手起每 ${t.levelDurationSeconds} 秒盲注翻倍，下一手生效` : "每淘汰一人盲注翻倍，同手淘汰多人累计升级，下一手生效"}。无底注，第一手由房主开始，之后结算展示 5 秒自动续手。无晚报名。已淘汰牌手可申请初始筹码，申请时未淘汰的其他牌手须全员同意，任一拒绝则作废；通过后退出上帝模式，下一手入局，累计投入增加，升盲不重置。已结束不可申请。零筹码且已淘汰的玩家可开启上帝模式，仅旁观已发底牌。同手淘汰按本手起始筹码排序，同额并列。最后一人获胜，可在原房间再开一场。`
+      ? `初始 ${state.initial} 筹码；${t.blindStructure === "gentle3" ? `每 ${t.levelDurationSeconds / 60} 分钟阶梯升盲，前 20 分钟上限 ${caps.earlySmall}/${caps.earlySmall * 2}（小盲为初始筹码的 1/20），最终最高 ${caps.small}/${caps.small * 2}（小盲为初始筹码的 1/10，向下取整），达到后不再升盲，一手最多升一级，下一手生效` : timedFriends(state) ? `从第一手起每 ${t.levelDurationSeconds} 秒盲注翻倍，下一手生效` : "每淘汰一人盲注翻倍，同手淘汰多人累计升级，下一手生效"}。无底注，第一手由房主开始，之后结算展示 5 秒自动续手。无晚报名。已淘汰牌手可申请初始筹码的 1-5 倍，申请时未淘汰的其他牌手须全员同意，任一拒绝则作废；通过后退出上帝模式，下一手入局，累计投入增加，升盲不重置。已结束不可申请。零筹码且已淘汰的玩家可开启上帝模式，仅旁观已发底牌。同手淘汰按本手起始筹码排序，同额并列。最后一人获胜，可在原房间再开一场。`
       : `初始 ${state.initial} 筹码；每 ${t.levelDurationSeconds / 60} 分钟升级。前两级无底注，其后大盲先付大盲再付底注。底注不抵扣跟注，不随人数减少。无晚报名、补筹码、复活或实时看底牌。同手淘汰按缴底注后起始筹码排序，同额并列。`;
   updateTournamentClocks();
 }
@@ -1618,9 +1625,10 @@ $("entry").onsubmit = (e) => {
     ...($("gameMode").value === "friends" ? { blindMinutes: Number($("blindMinutes").value) } : {}),
   });
 };
+$('friendRebuyMultiplier').onchange=()=>{if(state)renderRebuyRequests(state);};
 $("rebuy").onsubmit = (e) => {
   e.preventDefault();
-  send("rebuy", { amount: Number($("rebuyAmount").value) });
+  send("rebuy", { amount: state?.gameMode==='friends'?state.initial*Number($('friendRebuyMultiplier').value):Number($("rebuyAmount").value) });
 };
 $("invite").onclick = async () => {
   try {

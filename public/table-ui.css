@@ -8,6 +8,8 @@ html,body { touch-action:manipulation; }
 .diagnostic-command { display:flex; align-items:center; justify-content:center; gap:8px; min-height:36px; font-size:12px; }
 .diagnostic-command img { width:16px; height:16px; filter:var(--icon-filter); }
 #diagnosticDialog { width:min(420px,calc(100% - 24px)); max-height:80dvh; padding:16px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); }
+#rebuy { flex-wrap:wrap; }
+#friendRebuyMultiplier { flex:1; min-width:0; max-width:100%; min-height:44px; }
 #diagnosticDialog::backdrop { background:#07171299; }
 #diagnosticText { width:100%; resize:none; color:var(--ink); background:var(--input-bg); border:1px solid var(--line); font-size:12px; line-height:1.5; }
 .in-game {

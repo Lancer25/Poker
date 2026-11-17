@@ -150,6 +150,8 @@ test('native dice and room management follow server state, pin round/version and
 test('native friends fixed rebuy amount and vote/cancel commands follow server eligibility',()=>{
  const {page,sent}=harness(),r={...room(),gameMode:'friends',canRequestRebuy:true,tournament:{started:true,level:1},requests:[]};
  r.players[0].eliminated=true;r.players[0].stack=0;page.renderRoom(r);page.setData({rebuy:'99999'});page.request();assert.equal(sent.at(-1).amount,10000);
+ page.rebuyMultiplierChange({detail:{value:'4'}});page.renderRoom(r);page.request();assert.equal(sent.at(-1).amount,50000);assert.equal(page.data.rebuyMultiplierIndex,4);
+ page.rebuyMultiplierChange({detail:{value:'5'}});assert.equal(page.data.rebuyMultiplierIndex,4);
  r.canRequestRebuy=false;page.renderRoom(r);const n=sent.length;page.request();assert.equal(sent.length,n);
  page.approve({currentTarget:{dataset:{type:'approve',id:'q'}}});assert.equal(sent.at(-1).request,'q');
  page.approve({currentTarget:{dataset:{type:'cancelrebuy',id:'q'}}});assert.equal(sent.at(-1).type,'cancelrebuy');
@@ -223,6 +225,13 @@ test("native timed friends counts down blinds and continuation, retaining legacy
   }
   const wxml = readFileSync("miniprogram/pages/table/table.wxml", "utf8");
   assert.match(wxml, /wx:if="\{\{levelClock\}\}"/);
+});
+
+test('native shows dead small blind only at the start of that hand',()=>{
+  const {page}=harness(),r={...room(),gameMode:'friends',phase:'preflop',tournament:{deadSmallBlind:true}};
+  page.renderRoom(r);assert.match(page.data.stage,/本手无小盲/);
+  page.renderRoom({...r,phase:'flop'});assert.doesNotMatch(page.data.stage,/本手无小盲/);
+  page.renderRoom({...r,tournament:{deadSmallBlind:false}});assert.doesNotMatch(page.data.stage,/本手无小盲/);
 });
 
 test("native gentle friends displays three-minute countdown and structure ceilings", () => {

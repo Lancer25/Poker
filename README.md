@@ -52,7 +52,8 @@ node --env-file=.env server/index.js
 每手最多升一级；前 20 分钟小盲上限为初始筹码的 1/20，最终上限为 1/10，
 大盲为小盲两倍。升盲间隔可配置为 1–30 分钟。
 
-新房最小筹码单位为 5。补筹码需申请时仍未淘汰的其他牌手全员同意，房主
+新房最小筹码单位为 5。每次可申请初始筹码的 1–5 倍，默认 1 倍。
+补筹码需申请时仍未淘汰的其他牌手全员同意，房主
 不能代替他人批准。淘汰且筹码为零、不在当前手中的牌手可选择上帝模式；
 补筹码审批通过后立即退出，下一手复活。仍在本手全下的玩家不能开启。
 
@@ -77,6 +78,23 @@ npm test
 观战隔离、补筹码和备份恢复测试。使用临时虚构账号，不连接线上服务器。
 完整测试通常需要数分钟，部分测试会等待真实计时。GitHub Actions 会在
 推送和 PR 时运行测试。
+
+## 本地长局压测
+
+可用两个配置分别跑 7 人、9 人各 12 手真实 WebSocket 对局。测试启动临时
+本地服务，使用虚构账号，不读线上数据。`baseline` 从空房间存档开始；
+`history` 预置 100 个已结束房间及 6000 条模拟手牌记录。
+
+```powershell
+$env:POKER_LOAD_PROFILE = 'baseline'
+node --test --test-name-pattern='real players:' tests/multiplayer.test.js
+$env:POKER_LOAD_PROFILE = 'history'
+node --test --test-name-pattern='real players:' tests/multiplayer.test.js
+Remove-Item Env:POKER_LOAD_PROFILE
+```
+
+输出包括所有客户端收到操作结果的 P95、JSON 写入、快照构建、发送排队
+和状态包大小。该测试不包含浏览器绘制、手机切后台或公网延迟，不能替代线上验收。
 
 ## 目录
 

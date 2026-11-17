@@ -626,11 +626,11 @@
             value="{{rebuy}}"
             bindinput="input"
           /><button bindtap="request">申请补充</button></view
-        ><button wx:if="{{room.gameMode==='friends' && room.canRequestRebuy}}" disabled="{{!connected}}" bindtap="request">申请补充 {{room.initial}}</button
+        ><view wx:if="{{room.gameMode==='friends' && room.canRequestRebuy}}" class="row"><picker range="{{rebuyMultiplierOptions}}" value="{{rebuyMultiplierIndex}}" disabled="{{!connected}}" bindchange="rebuyMultiplierChange"><view>{{rebuyMultiplierOptions[rebuyMultiplierIndex]}}</view></picker><button disabled="{{!connected}}" bindtap="request">申请补充 {{room.initial*(rebuyMultiplierIndex+1)}}</button></view
         ><view wx:for="{{requests}}" wx:key="id"
           class="rebuy-request"
           ><view
-            >{{item.name}} 申请 {{item.amount}}{{item.kind!=='friend-rebuy' && item.status==='approved'?' ·
+            >{{item.name}} 申请 {{item.amount}}{{item.kind==='friend-rebuy'?'（'+item.multiplier+' 倍）':''}}{{item.kind!=='friend-rebuy' && item.status==='approved'?' ·
             已批准，本手结束后到账':''}}</view
           ><view wx:if="{{item.kind==='friend-rebuy'}}">
             <view class="rebuy-progress">{{item.status==='approved'?'全员通过 · 下一手到账':'已同意 '+item.approvals.length+'/'+item.voters.length}}</view>

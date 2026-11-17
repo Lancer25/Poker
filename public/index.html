@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="/game.css?v=modern1" />
     <link rel="stylesheet" href="/experience.css?v=revealhaptics1" />
     <link rel="stylesheet" href="/themes.css?v=recovery1" />
-    <link rel="stylesheet" href="/table-ui.css?v=hardening1" />
+    <link rel="stylesheet" href="/table-ui.css?v=rebuy5x1" />
     <link rel="stylesheet" href="/replay-ui.css?v=hardening1" />
     <link rel="stylesheet" href="/room-controls-ui.css?v=hardening1" />
   </head>
@@ -434,6 +434,7 @@
               <h3>筹码管理</h3>
               <div id="roomControls" hidden></div>
               <form id="rebuy">
+                <select id="friendRebuyMultiplier" aria-label="补充筹码倍数" hidden><option value="1">1 倍</option><option value="2">2 倍</option><option value="3">3 倍</option><option value="4">4 倍</option><option value="5">5 倍</option></select>
                 <input
                   id="rebuyAmount"
                   type="number"
@@ -551,6 +552,6 @@
       <div id="winnerDialogHands"></div>
     </dialog>
     <dialog id="diagnosticDialog" aria-labelledby="diagnosticTitle"><div class="raise-heading"><h3 id="diagnosticTitle">连接诊断</h3><button id="closeDiagnostic" type="button" class="icon-button" aria-label="关闭连接诊断" title="关闭"><img src="/assets/icons/x.svg" alt="" /></button></div><textarea id="diagnosticText" readonly rows="12" aria-label="连接诊断内容"></textarea></dialog>
-    <script type="module" src="/app.js?v=upright1"></script>
+    <script type="module" src="/app.js?v=rebuy5x-deadblind1"></script>
   </body>
 </html>

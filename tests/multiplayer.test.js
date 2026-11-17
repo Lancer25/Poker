@@ -1,21 +1,44 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { performance } from "node:perf_hooks";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { once } from "node:events";
 import { setTimeout as delay } from "node:timers/promises";
 import { WebSocket } from "./protocol-peer.js";
-import { seedAccounts, registerAt } from "./auth-helpers.js";
+import { seedAccounts, registerAt, apiAt } from "./auth-helpers.js";
+import {createRoom,joinRoom} from '../server/game.js';
+
+const loadProfile=process.env.POKER_LOAD_PROFILE;
+assert.ok(!loadProfile||['baseline','history'].includes(loadProfile),'POKER_LOAD_PROFILE must be baseline or history');
+const betting=new Set(['fold','check','call','raise','allin']);
+
+function seedHistory(directory) {
+  const rooms=Array.from({length:100},(_,i)=>{
+    const {room}=createRoom('Fixture');room.id=String(800000+i);
+    for(let j=1;j<9;j++)joinRoom(room,'Fixture '+j);
+    room.phase='ended';room.finishedAt=Date.now();
+    const results=room.players.map(p=>({id:p.id,name:p.name,stack:p.stack,buyin:p.buyin,net:0}));
+    const history=Array.from({length:20},(_,j)=>({hand:j+1,board:['2s','3s','4s','5s','6s'],pots:[],results}));
+    room.hand=20;room.roundNumber=3;room.history=history;
+    room.completedRounds=[1,2].map(number=>({number,hand:20,history,results}));
+    return room;
+  });
+  writeFileSync(path.join(directory,'rooms.json'),JSON.stringify({rooms,sessions:[]}));
+}
 
 async function harness(t) {
   const directory = mkdtempSync(path.join(tmpdir(), "holdem-multiplayer-"));
   const sockets = new Set();
-  const { invite } = await seedAccounts(directory);
+  const { invite,admin,store } = await seedAccounts(directory);
+  const adminToken=loadProfile?store.startSession(admin.id).token:null;
+  const samples=[];
+  if(loadProfile==='history')seedHistory(directory);
   let counter = 0;
   const server = spawn(process.execPath, ["server/index.js"], {
-    env: { ...process.env, PORT: "0", DATA_DIR: directory },
+    env: { ...process.env, HOST:'127.0.0.1', PORT: "0", DATA_DIR: directory, ...(loadProfile?{ROOM_STORAGE:'json',BACKUP_INTERVAL_MS:'0'}:{}) },
     stdio: ["ignore", "pipe", "pipe"],
   });
   t.after(async () => {
@@ -30,6 +53,7 @@ async function harness(t) {
     rmSync(directory, { recursive: true, force: true });
   });
   const [output] = await once(server.stdout, "data");
+  server.stdout.resume();
   const port = Number(output.toString().match(/localhost:(\d+)/)[1]);
   async function client(authToken) {
     if (!authToken) {
@@ -43,7 +67,7 @@ async function harness(t) {
         )
       ).token;
     }
-    const socket = new WebSocket(`ws://localhost:${port}`);
+    const socket = new WebSocket(`ws://127.0.0.1:${port}`);
     sockets.add(socket);
     const queue = [],
       waiting = [];
@@ -62,6 +86,7 @@ async function harness(t) {
       if (result.sent.length >= 15)
         await delay(1005 - (Date.now() - result.sent[0]));
       result.sent.push(Date.now());
+      result.sentAt=performance.now();
       socket.send(JSON.stringify({ type, ...data }));
     };
     result.take = (type, timeout = 5000) => {
@@ -90,7 +115,7 @@ async function harness(t) {
     result.clear = () => {
       queue.length = 0;
     };
-    await result.send("authenticate", { token: authToken });
+    await result.send("authenticate", { token: authToken, compactState:!!loadProfile });
     await result.take("account");
     return result;
   }
@@ -122,6 +147,7 @@ async function harness(t) {
     group.players.forEach((p) => p.clear());
     await player.send(type, data);
     const states = await Promise.all(group.players.map((p) => p.take("state")));
+    if(loadProfile&&betting.has(type))samples.push(performance.now()-player.sentAt);
     const common = (s) => ({
       id: s.id,
       phase: s.phase,
@@ -138,7 +164,15 @@ async function harness(t) {
       assert.deepEqual(common(message.room), common(states[0].room));
     return states[0].room;
   }
-  return { client, room, step };
+  async function profile(count){
+    if(!loadProfile)return;
+    const {status,data}=await apiAt(port,'/api/admin/diagnostics','GET',undefined,adminToken);
+    assert.equal(status,200);
+    const s=[...samples].sort((a,b)=>a-b),p95=Number(s[Math.ceil(s.length*.95)-1].toFixed(2));
+    const current=data.latency.current;
+    t.diagnostic(JSON.stringify({profile:loadProfile,players:count,samples:s.length,allPeersReceiveP95Ms:p95,rooms:data.rooms.total,storedBytes:data.storage.bytes,save:current.saveMs,snapshot:current.snapshotMs,sendQueue:current.queueMs,stateBytes:current.stateBytes}));
+  }
+  return { client, room, step, profile };
 }
 
 for (const count of [7, 9])
@@ -222,10 +256,11 @@ for (const count of [7, 9])
           state.results.reduce((sum, p) => sum + p.net, 0),
           0,
         );
-        assert.equal(state.history.length, hand + 1);
+        assert.equal(loadProfile?state.historyCount:state.history.length, hand + 1);
       }
       const ended = await h.step(group, group.host, "end");
       assert.equal(ended.phase, "ended");
+      await h.profile(count);
       t.diagnostic(
         `${count} players; 12 settled hands; ${actions} betting actions; ${broadcasts} action broadcasts checked`,
       );

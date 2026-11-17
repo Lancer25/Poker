@@ -97,6 +97,7 @@ Page({
     turnSeconds: "30",
     blindMinutes: "3",
     rebuy: "1000",
+    rebuyMultiplierIndex:0,
     raise: "20",
     room: null,
     seats: [],
@@ -659,7 +660,7 @@ Page({
             : `${r.tournament.pendingLevel ? "待生效" : "下级盲注"} ${(r.tournament.pendingLevel || r.tournament.nextLevel).small}/${(r.tournament.pendingLevel || r.tournament.nextLevel).big} · 底注 ${(r.tournament.pendingLevel || r.tournament.nextLevel).ante}`
           : "",
       eventRules: r.gameMode === "friends"
-        ? `初始 ${r.initial} 筹码；${r.tournament?.blindStructure === "gentle3" ? `每 ${r.tournament.levelDurationSeconds / 60} 分钟阶梯升盲，前 20 分钟上限 ${caps.earlySmall}/${caps.earlySmall * 2}（小盲为初始筹码的 1/20），最终最高 ${caps.small}/${caps.small * 2}（小盲为初始筹码的 1/10，向下取整），达到后不再升盲，一手最多升一级，下一手生效` : timedFriends(r) ? `从第一手起每 ${r.tournament.levelDurationSeconds} 秒盲注翻倍，下一手生效` : "每淘汰一人盲注翻倍，同手淘汰多人累计升级，下一手生效"}。无底注，第一手由房主开始，之后结算展示 5 秒自动续手。无晚报名。已淘汰牌手可申请初始筹码，申请时未淘汰的其他牌手须全员同意，任一拒绝则作废；通过后退出上帝模式，下一手入局，累计投入增加，升盲不重置。已结束不可申请。零筹码且已淘汰的玩家可开启上帝模式，仅旁观已发底牌。同手淘汰按本手起始筹码排序，同额并列。最后一人获胜，可在原房间再开一场。`
+        ? `初始 ${r.initial} 筹码；${r.tournament?.blindStructure === "gentle3" ? `每 ${r.tournament.levelDurationSeconds / 60} 分钟阶梯升盲，前 20 分钟上限 ${caps.earlySmall}/${caps.earlySmall * 2}（小盲为初始筹码的 1/20），最终最高 ${caps.small}/${caps.small * 2}（小盲为初始筹码的 1/10，向下取整），达到后不再升盲，一手最多升一级，下一手生效` : timedFriends(r) ? `从第一手起每 ${r.tournament.levelDurationSeconds} 秒盲注翻倍，下一手生效` : "每淘汰一人盲注翻倍，同手淘汰多人累计升级，下一手生效"}。无底注，第一手由房主开始，之后结算展示 5 秒自动续手。无晚报名。已淘汰牌手可申请初始筹码的 1-5 倍，申请时未淘汰的其他牌手须全员同意，任一拒绝则作废；通过后退出上帝模式，下一手入局，累计投入增加，升盲不重置。已结束不可申请。零筹码且已淘汰的玩家可开启上帝模式，仅旁观已发底牌。同手淘汰按本手起始筹码排序，同额并列。最后一人获胜，可在原房间再开一场。`
         : "无晚报名、补筹码、复活或实时看底牌。底注不抵扣跟注。同手淘汰按缴底注后起始筹码排序，同额并列。",
       insight: r.insight || null,
       seats,
@@ -698,7 +699,9 @@ Page({
             ? "冠军已产生"
             : r.tournament?.cancelled
               ? "比赛已取消"
-              : stages[r.phase],
+              : r.phase==='preflop' && r.tournament?.deadSmallBlind
+                ? `${stages[r.phase]} · 本手无小盲`
+                : stages[r.phase],
       isHost: r.host === r.me,
       hostName: r.players.find((p) => p.id === r.host)?.name || "-",
       idle,
@@ -750,6 +753,8 @@ Page({
       botCountIndex:Math.min(this.data.botCountIndex||0,Math.max(0,Math.min(8,r.botSetup?.capacity||0)-1)),
       seatDice:r.seating ? {...r.seating,listHeight:Math.min(5,r.seating.entries.length)*88,entries:r.seating.entries.map(e=>({...e,diceImages:(e.dice.length?e.dice:[0,0]).map(n=>n?`/assets/dice-${n}.svg`:'/assets/dices.svg')}))} : null,
       rebuyQueued:requests.some(req=>req.kind==='friend-rebuy' && req.player===r.me && req.status==='approved'),
+      rebuyMultiplierIndex:sameRound?(this.data.rebuyMultiplierIndex||0):0,
+      rebuyMultiplierOptions:[1,2,3,4,5].map(n=>`${n} 倍 · ${(n*r.initial).toLocaleString()}`),
       payout: r.pots
         .map(
           (p) =>
@@ -1026,8 +1031,9 @@ Page({
   request() {
     const r=this.data.room;
     if(r?.gameMode==='friends' && !r.canRequestRebuy)return;
-    this.send("rebuy", { amount: r?.gameMode==='friends' ? r.initial : Number(this.data.rebuy) });
+    this.send("rebuy", { amount: r?.gameMode==='friends' ? r.initial*((this.data.rebuyMultiplierIndex||0)+1) : Number(this.data.rebuy) });
   },
+  rebuyMultiplierChange(e){const index=Number(e.detail.value);if(Number.isInteger(index)&&index>=0&&index<5)this.setData({rebuyMultiplierIndex:index});},
   approve(e) {
     this.send(e.currentTarget.dataset.type, {
       request: e.currentTarget.dataset.id,

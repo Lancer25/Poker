@@ -1,16 +1,16 @@
 import { avatarFromFile, showAvatar } from "/avatar-upload.js?v=avatar1";
-import {renderFriendRoomUI} from '/friend-room-ui.js?v=tabledice1';
+import {renderFriendRoomUI} from '/friend-room-ui.js?v=dock2';
 import {PlayerPanel} from '/player-panel.js?v=charms1';
 import {renderForecast} from '/hand-forecast-ui.js?v=playerforecast1';
 import { TableFeedback } from "/table-feedback.js?v=hardening1";
-import {RoomUI,paintPortrait} from '/room-ui.js?v=upright1';
+import {RoomUI,paintPortrait} from '/room-ui.js?v=dock2';
 import {ConnectionRecovery} from '/connection-recovery.js?v=raiseux2';
 import {renderTableObjects,wagerView} from '/table-objects.js?v=hardening1';
 import {renderSeatCharms,renderPotChips} from '/chip-display.js?v=hardening1';
 import {renderBotSetup} from '/bot-setup.js?v=practice1';
-import {seatRenderKey,reconcileChildren} from '/keyed-render.js?v=hardening1';
+import {seatRenderKey,reconcileChildren,visibleHandTotal} from '/keyed-render.js?v=dock2';
 import {openReplay,closeReplay} from '/replay-ui.js?v=hardening1';
-import {renderRoomControls} from '/room-controls-ui.js?v=hardening1';
+import {renderRoomControls,renderTablePendingBadge} from '/room-controls-ui.js?v=dock2';
 const $ = (id) => document.getElementById(id);
 const { decisionKey, betOptions, betStep, stepBetAmount, chipUnit,betImpact,connectionStatus } = TableExperience;
 const feedback = new TableFeedback();
@@ -32,7 +32,7 @@ function sendControl(command,data){
   const id='c-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);
   return new Promise((resolve,reject)=>{const timer=setTimeout(()=>{controlRequests.delete(id);reject(Error('房间操作未确认，请刷新状态后重试'));},10000);controlRequests.set(id,{resolve,reject,timer});send('roomcontrol',{...data,command,controlRequestId:id});});
 }
-function refreshRoomControls(){if(state)renderRoomControls(state,{user:currentUser,connected:connected&&recovery.mode==='ready',send:sendControl});}
+function refreshRoomControls(){if(state)renderRoomControls(state,{user:currentUser,connected:connected&&recovery.mode==='ready',send:sendControl,resumeInActionDock:true});}
 $('cancelWatch').onclick=()=>{if(connected)send('watchcancel');else{setWatchIntent(null);$('watchStatus').hidden=true;toast('已停止本机等待');}};
 $('closeDiagnostic').onclick=()=>$('diagnosticDialog').close();
 $('copyDiagnostics').onclick=async()=>{
@@ -169,6 +169,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)recovery.su
 document.addEventListener('visibilitychange',()=>{forecastController.sync();if(document.hidden)playerPanel.close();});
 function updateCountdown() {
   updateTournamentClocks();
+  syncDockClock();
   const clock = document.querySelector(".seat-clock");
   if (!clock || !state) return;
   const remaining = Math.max(
@@ -319,6 +320,7 @@ function showLogin(message = "") {
   document.body.classList.remove('authenticated');window.HoldemTheme?.setAccount(null);roomUI.closeTools();
   $('authPassword').type='password';$('togglePassword').setAttribute('aria-pressed','false');$('togglePassword').setAttribute('aria-label','显示密码');$('togglePassword').title='显示密码';$('togglePassword').querySelector('img').src='/assets/icons/eye.svg';
   state = null;
+  renderTablePendingBadge(null);
   document.body.classList.remove("in-game");
   archiveList.replaceChildren();
   [
@@ -338,7 +340,6 @@ function showLogin(message = "") {
     "myName",
     "myStack",
     "turnNotice",
-    "requestBadge",
     "standings",
     "eventRules",
     "completedRounds",
@@ -349,7 +350,6 @@ function showLogin(message = "") {
     "nextLevelBlinds",
     "tournamentPositionNote",
   ].forEach((id) => $(id).replaceChildren());
-  $("requestBadge").hidden = true;
   $("controls").dataset.decision = "";
   $("betSizing").hidden = true;
   $("tournamentStrip").hidden = $("tab-tournament").hidden = true;
@@ -494,7 +494,7 @@ function dropConnection() {
   pendingReveal=null;refreshShowCards();stopPlayerLatency();refreshPlayerLatency();
   pendingAction=null;pendingRematch=null;liveMetrics.cancelActions();feedback.reset();refreshBetControls();
   $('showWinningCards').disabled=true;
-  document.querySelectorAll('#hostControls button,#hostControls select,#godControls button').forEach(b=>b.disabled=true);
+  document.querySelectorAll('#hostControls button,#hostControls select,#dockHostActions button,#dockHostActions select,#godControls button,#rollSeatDice').forEach(b=>b.disabled=true);
   $('connection').textContent=navigator.onLine===false?'网络已断开':'重新连接中';
 }
 function connect() {
@@ -592,6 +592,7 @@ function connect() {
         sessionStorage.removeItem(key);
         sessionStorage.removeItem(roomKey);
         state = null;
+        renderTablePendingBadge(null);
         roomUI.closeTools();
         playerPanel.close();forecastController.reset();
         historyCache.reset();
@@ -700,9 +701,6 @@ function renderRebuyRequests(r) {
   if(friends)$('rebuyAmount').value=r.initial*multiplier;
   $('rebuy').querySelector('button').textContent=friends ? `申请补充 ${r.initial*multiplier}` : '申请补充';
   $('requests').replaceChildren();
-  $('requestBadge').hidden=!r.requests.length;
-  $('requestBadge').textContent=r.requests.length;
-  $('tab-chips').setAttribute('aria-label',r.requests.length ? `筹码，${r.requests.length} 项申请` : '筹码');
   for(const req of r.requests) {
     const row=document.createElement('div');
     const name=r.players.find(p=>p.id===req.player)?.name || '';
@@ -768,7 +766,8 @@ function render() {
   TableLayout.seatLayout(seated, r.me).forEach(({ x, y, index }) => {
     const p = seated[index],
       i = r.players.indexOf(p);
-    const renderKey=seatRenderKey(p,r,i,wagerView(r,p,i).roles),previous=previousSeats.get(p.id);
+    const wager=wagerView(r,p,i),handTotal=visibleHandTotal(p,wager.amount);
+    const renderKey=seatRenderKey(p,r,i,wager.roles,handTotal),previous=previousSeats.get(p.id);
     if(previous?.dataset.renderKey===renderKey){nextSeats.push(previous);return;}
     const el = document.createElement("div");
     el.dataset.renderKey=renderKey;
@@ -818,14 +817,6 @@ function render() {
       const stack = document.createElement("div");
       stack.className = "stack";
       stack.textContent = p.stack.toLocaleString();
-      const total = document.createElement("div");
-      total.className =
-        "hand-total" +
-        (String(p.totalBet || 0).length >= 7 ? " amount-large" : "");
-      total.textContent = "总下注 " + (p.totalBet || 0);
-      total.dataset.amount=String(p.totalBet||0);
-      total.title = `本手总下注：${(p.totalBet || 0).toLocaleString()}`;
-      total.setAttribute("aria-label", total.title);
       const bet = document.createElement("div");
       bet.className = "bet";
       bet.textContent = p.godMode
@@ -840,8 +831,16 @@ function render() {
       const hand = document.createElement("div");
       hand.className = "cards";
       cards(hand, p.cards);
-      renderSeatCharms(avatar,wagerView(r,p,i).roles);
-      el.append(avatar, name, stack, total, bet, hand);
+      renderSeatCharms(avatar,wager.roles);
+      el.append(avatar,name,stack);
+      if(handTotal!==null){
+        const total=document.createElement('div');
+        total.className='hand-total'+(String(handTotal).length>=7?' amount-large':'');
+        total.textContent=`总下注 ${handTotal.toLocaleString()}`;
+        total.title=`本手总下注：${handTotal.toLocaleString()}`;
+        el.append(total);
+      }
+      el.append(bet,hand);
       if (r.turn === i && Number.isFinite(r.deadline)) {
         const clock = document.createElement("span");
         clock.className = "seat-clock";
@@ -962,18 +961,18 @@ function render() {
     !!r.flopReveal || !!r.spectating || !!r.godMode || (!!r.tournament && !!me.eliminated);
   renderInsight();
   renderBetControls(r);
-  $("contribution").textContent = me.inHand
-    ? `本手投入 ${(me.totalBet || 0).toLocaleString()}`
-    : "";
+  $('contribution').textContent=''; // The local seat uses the same hand-total label as other seats.
   const h = $("hostControls");
   h.replaceChildren();
+  const primary=$('dockHostActions');primary.replaceChildren();
   if (
     r.host === r.me &&
     (r.tournament
       ? r.phase === "waiting"
       : ["waiting", "showdown"].includes(r.phase))
-  )
-    h.append(
+  ) {
+    const diceOwnsStart=r.gameMode==='friends'&&r.hand===0&&r.seating;
+    if(!diceOwnsStart)primary.append(
       button(
         r.hand ? "开始下一手" : r.tournament ? "开始比赛" : "开始发牌",
         "start",
@@ -981,6 +980,7 @@ function render() {
         r.roomControls?.canContinue===false || r.players.filter((p) => !p.removed && p.stack > 0).length < 2 || (r.gameMode==='friends' && (r.seating?.status==='rolling' || Number.isFinite(r.seating?.autoStartAt))),
       ),
     );
+  }
   if (
     r.host === r.me &&
     (r.tournament
@@ -1047,13 +1047,19 @@ function render() {
         send("restart", { round: r.roundNumber || 1, chipMode: rematchMode });
     };
     select.disabled = !!pendingRematch;
-    h.append(label, reopen);
+    primary.append(label, reopen);
     if (r.canCarryRound === false) {
       const note = document.createElement("span");
       note.className = "host-status";
       note.textContent = "淘汰赛已有零筹码玩家，需重置筹码";
       h.append(note);
     }
+  }
+  const pause=r.roomControls?.pause;
+  if(r.host===r.me&&r.roomControls?.canManage&&pause?.state==='active'&&r.phase!=='ended'){
+    const resume=button('恢复牌桌','resume',{},!connected||r.roomControls.seats.some(s=>s.eligible&&(!s.ready||s.away||s.pendingAway===true)));
+    resume.onclick=async()=>{resume.disabled=true;try{await sendControl('resume',{round:r.roomControls.round,version:r.roomControls.version});}catch(error){if(resume.isConnected)resume.disabled=!connected;toast(error.message);}};
+    primary.replaceChildren(resume);
   }
   renderRebuyRequests(r);
   renderRoundRecords(r);
@@ -1084,11 +1090,38 @@ function render() {
   if (!connected)
     document
       .querySelectorAll(
-        "#hostControls button,#hostControls select,#godControls button",
+        "#hostControls button,#hostControls select,#dockHostActions button,#dockHostActions select,#godControls button",
       )
       .forEach((b) => (b.disabled = true));
   resetCountdown();
+  syncDockStatus(r,actingPlayer);
   roomUI.sync(r);
+}
+function syncDockStatus(r,actor) {
+  const isDecision=actor?.id===r.me&&!r.flopReveal;
+  const winnerNames=[...new Set((r.pots||[]).filter(p=>!p.refund&&p.amount>0).flatMap(p=>p.winners||[]))];
+  const settled=['showdown','ended'].includes(r.phase)&&winnerNames.length>0;
+  const label=settled?`${winnerNames.join('、')} 赢得本手`:$('turnNotice').textContent;
+  $('game').dataset.dock=isDecision?'decision':settled?'settled':'waiting';
+  $('dockWaitingLabel').textContent=label;
+  $('dockWaitingLabel').title=label;
+  $('dockWaiting').hidden=isDecision;
+  const dice=$('rollSeatDice');
+  if(!dice.hidden&&!r.seating?.canRoll){
+    const opening=r.seating?.status==='idle'||(r.seating?.status==='ready'&&!Number.isFinite(r.seating.autoStartAt));
+    if(!opening||r.host!==r.me||r.roomControls?.pause?.state==='active')dice.hidden=true;
+  }
+  syncDockClock();
+}
+function syncDockClock(){
+  if(!state)return;
+  const clock=$('dockNextHand'),text=state.phase==='showdown'&&state.tournament?$('nextHandClock').textContent:'';
+  if(clock.textContent!==text)clock.textContent=text;
+  clock.hidden=!text;
+  if($('game').classList.contains('viewing-layout')){
+    const notice=[$('dockWaitingLabel').textContent,text].filter(Boolean).join(' · ');
+    if($('observerNotice').textContent!==notice)$('observerNotice').textContent=notice;
+  }
 }
 function renderWinnerFocus(r) {
   clearTimeout(winnerFocusTimer);
@@ -1380,6 +1413,7 @@ function refreshBetControls() {
   if (pendingAction) $("turnNotice").textContent = pendingAction.confirmed?'已确认，正在同步':"提交中";
   else if (!connected||recovering) $("turnNotice").textContent = connectionStatus(typeof recovery==='undefined'?'waiting':recovery.mode);
   else if (own) $("turnNotice").textContent = "轮到你";
+  if(!own&&(!connected||recovering))$('dockWaitingLabel').textContent=$('turnNotice').textContent;
 }
 $("betSlider").oninput = () => {
   $("betAmount").value = $("betSlider").value;
@@ -1603,6 +1637,7 @@ back.onclick = () => {
   clearInterval(countdownLoop);
   send("leave");
   state = null;
+  renderTablePendingBadge(null);
   playerPanel.close();forecastController.reset();
   historyCache.reset();
   sessionStorage.removeItem(key);

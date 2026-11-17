@@ -6,7 +6,37 @@ const element = (tag, className, text) => {
   return node;
 };
 
-export function renderRoomControls(room, {user, connected = false, send} = {}) {
+function canVoteOnPause(room) {
+  const controls = room?.roomControls;
+  const pause = controls?.pause;
+  return room?.gameMode === 'friends' && room.phase !== 'ended' &&
+    controls?.enabled && pause?.state === 'pending' &&
+    pause.voters.includes(room.me) && !pause.approvals.includes(room.me);
+}
+
+export function renderTablePendingBadge(room) {
+  const tab = document.getElementById('tab-chips');
+  const badge = document.getElementById('requestBadge');
+  if (!tab || !badge) return;
+
+  const chipCount = room && room.phase !== 'ended' ? (room.requests || []).filter(request =>
+    request.status === 'pending' && (room.gameMode === 'friends' ?
+      request.canApprove : room.me === room.host)).length : 0;
+  const pauseCount = Number(Boolean(canVoteOnPause(room)));
+  const total = chipCount + pauseCount;
+  const label = ['筹码'];
+  if (chipCount) label.push(`${chipCount} 项待审批筹码申请`);
+  if (pauseCount) label.push('1 项待表决暂停申请');
+  const name = label.join('，');
+
+  badge.hidden = total === 0;
+  const count = total ? String(total) : '';
+  if (badge.textContent !== count) badge.textContent = count;
+  if (tab.getAttribute('aria-label') !== name) tab.setAttribute('aria-label', name);
+}
+
+export function renderRoomControls(room, {user, connected = false, send, resumeInActionDock = false} = {}) {
+  renderTablePendingBadge(room);
   const panel = document.getElementById('roomControls');
   const settingsPanel = document.getElementById('roomControlSettings');
   if (!panel) { if (settingsPanel) settingsPanel.hidden = true; return; }
@@ -16,7 +46,7 @@ export function renderRoomControls(room, {user, connected = false, send} = {}) {
   if (panel.hidden) { panel.replaceChildren(); settingsPanel?.replaceChildren(); rendered.delete(panel); return; }
   const {clockAt, ...pause} = c.pause || {};
   const signature = JSON.stringify([room.id, room.me, room.phase, connected, user?.id,
-    {...c, pause: c.pause ? pause : null}, !!settingsPanel]);
+    {...c, pause: c.pause ? pause : null}, !!settingsPanel, resumeInActionDock]);
   if (rendered.get(panel) === signature) return;
   rendered.set(panel, signature);
   panel.replaceChildren(); settingsPanel?.replaceChildren();
@@ -33,18 +63,25 @@ export function renderRoomControls(room, {user, connected = false, send} = {}) {
   panel.append(status);
   const error = element('span', 'room-controls-error');
   error.setAttribute('role', 'alert'); panel.append(error);
+  const settingsError = settingsPanel && !settingsPanel.hidden ? element('div', 'room-controls-error') : null;
+  if (settingsError) {
+    settingsError.setAttribute('role', 'alert');
+    settingsPanel.append(settingsError);
+  }
   const ended = room.phase === 'ended';
   let busy = false;
   const dispatch = async (type, data = {}) => {
     if (!connected || ended || busy || typeof send !== 'function') return;
-    busy = true; error.textContent = '';
+    const inSettings = ['settings', 'spectatorapprove', 'spectatorreject'].includes(type);
+    const feedback = (inSettings && settingsError) || error;
+    busy = true; feedback.textContent = '';
     const nodes = [...panel.querySelectorAll('button,input,select'),
       ...(settingsPanel?.querySelectorAll('button,input,select') || [])];
     const disabled = nodes.map(node => node.disabled);
     nodes.forEach(node => { node.disabled = true; });
     try { await send(type, {...data, round: c.round, version: c.version,
       ...((type === 'ready' || type === 'away') ? {readyEpoch: c.readyEpoch ?? 0} : {})}); }
-    catch (cause) { error.textContent = cause?.message || '操作未完成，请重试'; }
+    catch (cause) { feedback.textContent = cause?.message || '操作未完成，请重试'; }
     finally { busy = false; nodes.forEach((node, i) => { node.disabled = disabled[i]; }); }
   };
   const button = (parent, label, type, data, icon) => {
@@ -81,13 +118,13 @@ export function renderRoomControls(room, {user, connected = false, send} = {}) {
     actions.append(element('span', 'room-controls-pause', p.state === 'active' ? '牌桌已暂停' :
       `${p.state === 'granted' ? '本手后暂停' : '暂停表决'} ${p.approved}/${p.required}`));
     if (p.state !== 'active') {
-      if (p.voters.includes(room.me) && !p.approvals.includes(room.me)) {
+      if (canVoteOnPause(room)) {
         button(actions, '同意暂停', 'pausevote', {request: p.id, value: true}, 'check');
         button(actions, '拒绝暂停', 'pausevote', {request: p.id, value: false}, 'x');
       }
       if (p.requestedBy === room.me || c.canManage)
         button(actions, '撤销暂停申请', 'pausecancel', {request: p.id}, 'circle-slash');
-    } else if (c.canManage) {
+    } else if (c.canManage && !resumeInActionDock) {
       const resume = button(actions, '恢复牌桌', 'resume');
       resume.disabled ||= c.seats.some(s => s.eligible && (!s.ready || s.away || s.pendingAway === true));
     }

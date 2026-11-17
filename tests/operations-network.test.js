@@ -1,11 +1,11 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {spawn} from 'node:child_process';import {mkdtempSync,rmSync} from 'node:fs';import {tmpdir} from 'node:os';import path from 'node:path';import {once} from 'node:events';import {setTimeout as delay} from 'node:timers/promises';import {WebSocket} from 'ws';
-import {seedAccounts,apiAt,testPassword} from './auth-helpers.js';import {restoreBackup,verifyBackup} from '../server/backup-store.js';
+import test from 'node:test';import assert from 'node:assert/strict';import {spawn,execFileSync} from 'node:child_process';import {mkdtempSync,readFileSync,rmSync} from 'node:fs';import {tmpdir} from 'node:os';import path from 'node:path';import {once} from 'node:events';import {setTimeout as delay} from 'node:timers/promises';import {WebSocket} from 'ws';
+import {seedAccounts,apiAt,registerAt,testPassword} from './auth-helpers.js';import {restoreBackup,verifyBackup} from '../server/backup-store.js';
 import {createRoomStore} from '../server/room-store.js';
 import {createRoom,joinRoom} from '../server/game.js';
 import {startHand} from './game-helpers.js';
 const children=new WeakMap();
-function cleanup(t,dir){children.set(t,[]);t.after(async()=>{for(const child of children.get(t))if(child.exitCode===null){const end=once(child,'exit');child.kill();await end;}assert.equal(path.dirname(dir),path.resolve(tmpdir()));rmSync(dir,{recursive:true,force:true});});}
-async function server(t,dir,env={}){const child=spawn(process.execPath,['server/index.js'],{env:{...process.env,PORT:'0',DATA_DIR:dir,BACKUP_INTERVAL_MS:'0',...env},stdio:['ignore','pipe','pipe']});children.get(t).push(child);return Number((await once(child.stdout,'data'))[0].toString().match(/localhost:(\d+)/)[1]);}
+function cleanup(t,dir){children.set(t,[]);t.after(async()=>{for(const child of children.get(t))if(child.exitCode===null&&child.signalCode===null){const end=once(child,'exit');child.kill();await end;}assert.equal(path.dirname(dir),path.resolve(tmpdir()));rmSync(dir,{recursive:true,force:true});});}
+async function server(t,dir,env={}){const child=spawn(process.execPath,['server/index.js'],{env:{...process.env,HOST:'127.0.0.1',PORT:'0',DATA_DIR:dir,BACKUP_INTERVAL_MS:'0',...env},stdio:['ignore','pipe','pipe']});children.get(t).push(child);return Number((await once(child.stdout,'data'))[0].toString().match(/localhost:(\d+)/)[1]);}
 for(const mode of ['json','sqlite'])test(`${mode}: private admin backups restore an independent instance with accounts and an active hand`,{timeout:20000},async t=>{
  const dir=mkdtempSync(path.join(tmpdir(),'holdem-ops-'));cleanup(t,dir);const {store,admin,invite}=await seedAccounts(dir),auth=store.startSession(admin.id),user=await store.register({username:'operator_user',nickname:'User',password:testPassword,inviteCode:invite.code});
  const {room}=createRoom('Admin',10000,10,20,60,'friends');joinRoom(room,'User');room.players[0].accountId=admin.id;room.players[1].accountId=user.user.id;startHand(room,room.host);
@@ -28,4 +28,38 @@ test('optional secure-auth enforcement rejects HTTP API and plain WebSocket with
  const dir=mkdtempSync(path.join(tmpdir(),'holdem-secure-'));cleanup(t,dir);await seedAccounts(dir);const port=await server(t,dir,{REQUIRE_SECURE_AUTH:'1'});
  const info=await apiAt(port,'/api/security');assert.equal(info.status,200);assert.equal(info.data.enforced,true);assert.equal((await apiAt(port,'/api/auth/login','POST',{username:'admin',password:testPassword})).status,426);
  const ws=new WebSocket('ws://127.0.0.1:'+port),packets=[];ws.on('message',raw=>packets.push(JSON.parse(raw)));const [code]=await once(ws,'close');assert.equal(code,1008);assert.equal(packets[0].code,'secure_transport_required');
+});
+
+test('offline JSON to SQLite cutover and JSON rollback preserve writes made after the switch',{timeout:20000},async t=>{
+ const dir=mkdtempSync(path.join(tmpdir(),'holdem-cutover-'));cleanup(t,dir);
+ const {store,admin,invite}=await seedAccounts(dir),auth=store.startSession(admin.id);
+ const guest=await store.register({username:'cutover_guest',nickname:'Guest',password:testPassword,inviteCode:invite.code});
+ const {room}=createRoom('Admin',10000,10,20,60,'friends');joinRoom(room,'Guest');
+ room.players[0].accountId=admin.id;room.players[1].accountId=guest.user.id;startHand(room,room.host);
+ const json=createRoomStore(dir,{mode:'json'});json.save({rooms:[room],sessions:[]});json.close();
+ const original=readFileSync(path.join(dir,'rooms.json')),originalAccounts=readFileSync(path.join(dir,'accounts.json'));
+ const sqliteDir=path.join(dir,'sqlite'),rollbackDir=path.join(dir,'rollback');
+ const convert=(command,source,target)=>JSON.parse(execFileSync(process.execPath,['server/storage-tools.js',command,source,target,'--offline'],{encoding:'utf8'}));
+ assert.deepEqual(convert('import-json',dir,sqliteDir),{mode:'sqlite',rooms:1,sessions:0,verified:true});
+ const port=await server(t,sqliteDir,{ROOM_STORAGE:'sqlite'});
+ assert.equal((await apiAt(port,'/api/auth/me','GET',undefined,auth.token)).data.user.id,admin.id);
+ const newUser=await registerAt(port,invite.code,'cutover_new','New after switch');
+ const ws=new WebSocket('ws://127.0.0.1:'+port),packets=[];ws.on('message',raw=>packets.push(JSON.parse(raw)));t.after(()=>ws.terminate());
+ async function take(type){const end=Date.now()+4000;while(!packets.some(m=>m.type===type)){if(Date.now()>end)throw Error('cutover message timeout: '+type);await delay(5);}return packets.splice(packets.findIndex(m=>m.type===type),1)[0];}
+ const actor=room.players[room.turn].accountId===admin.id?auth:guest;
+ await once(ws,'open');ws.send(JSON.stringify({type:'authenticate',token:actor.token,compactState:true}));await take('account');
+ ws.send(JSON.stringify({type:'resume',room:room.id}));const before=(await take('state')).room;
+ assert.equal(before.phase,'preflop');assert.ok(before.actionContext);
+ ws.send(JSON.stringify({type:'fold',requestId:'cutover-fold',decision:before.actionContext}));await take('action_result');
+ assert.equal((await take('state')).room.phase,'showdown');
+ const resource=`/api/rooms/${room.id}/history`;
+ const history=(await apiAt(port,resource,'GET',undefined,auth.token)).data;
+ assert.equal(history.hands[0].replay.complete,true);
+ ws.terminate();const child=children.get(t).at(-1),exited=once(child,'exit');child.kill();await exited;
+ assert.equal(convert('export-json',sqliteDir,rollbackDir).verified,true);
+ assert.deepEqual(readFileSync(path.join(dir,'rooms.json')),original);
+ assert.deepEqual(readFileSync(path.join(dir,'accounts.json')),originalAccounts);
+ const rollbackPort=await server(t,rollbackDir,{ROOM_STORAGE:'json'});
+ assert.equal((await apiAt(rollbackPort,'/api/auth/me','GET',undefined,newUser.token)).data.user.id,newUser.user.id);
+ assert.deepEqual((await apiAt(rollbackPort,resource,'GET',undefined,auth.token)).data,history);
 });

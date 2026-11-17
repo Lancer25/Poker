@@ -186,13 +186,27 @@ html,body { touch-action:manipulation; }
 .in-game .tool-tabs button:active .menu-icon { transform:scale(.94); }
 .in-game .room-tools { border-color:var(--line); border-radius:0; }
 .in-game .settings-content { max-height:calc(var(--app-height,100dvh) - var(--safe-top) - 65px); z-index:80; }
-.in-game #game.viewing-layout .action-dock { display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:40px 40px; padding:8px 6px; gap:6px; background:transparent; }
+.in-game #game.viewing-layout .action-dock { display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:40px 44px; padding:3px 8px; gap:2px; background:transparent; }
 .in-game #game.viewing-layout .decision-controls { display:none; }
-.in-game #game.viewing-layout .play-surface { grid-template-rows:minmax(0,1fr) 104px; }
-.in-game #game.viewing-layout.viewer-no-actions .play-surface { grid-template-rows:minmax(0,1fr) 64px; }
+.in-game #game.viewing-layout .play-surface { grid-template-rows:minmax(0,1fr) 93px; }
 .in-game .viewing-layout .action-status { display:none; }
 .in-game .viewing-layout .aux-controls { grid-column:1; grid-row:2; justify-content:space-between; }
-.in-game #game.viewing-layout.viewer-no-actions .action-dock { grid-template-rows:40px; padding-top:12px; padding-bottom:12px; }
+.in-game #game .decision-actions { flex:0 0 44px; height:44px; }
+.in-game #game .decision-actions .aux-controls,.in-game #game.viewing-layout .aux-controls { margin:0; flex-wrap:nowrap; }
+.in-game #game .decision-actions .aux-controls:has(> #godControls:empty):has(> #dockHostActions:empty):has(> #showCardsControls[hidden]) { display:none; }
+.in-game #game:not([data-dock=decision]) .action-status { visibility:hidden; }
+.in-game #game .dock-waiting:not([hidden]) { display:flex; flex:1 1 auto; min-width:0; flex-direction:column; justify-content:center; align-items:flex-start; gap:1px; }
+.in-game #game .dock-waiting strong { max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--ink); font-size:13px; }
+.in-game #game .dock-waiting span { color:var(--positive); font-size:11px; font-variant-numeric:tabular-nums; }
+.in-game #game .decision-actions:has(#winnerFocus:not([hidden])) .dock-waiting strong { display:none; }
+.in-game #game .dock-host-actions { display:flex; align-items:center; flex:0 1 auto; min-width:0; gap:6px; }
+.in-game #game .dock-host-actions:empty { display:none; }
+.in-game #game .dock-host-actions button { min-height:44px; padding:5px 9px; font-size:12px; white-space:nowrap; background:var(--primary-bg); color:var(--primary-ink); border-color:var(--primary-line); }
+.in-game #game .dock-host-actions .rematch-choice { font-size:0; gap:0; min-width:0; }
+.in-game #game .dock-host-actions .rematch-choice select { min-width:0; width:100%; max-width:124px; min-height:44px; padding:4px; background:var(--input-bg); color:var(--ink); font-size:12px; }
+.in-game #game #showCardsStatus:empty { display:none; }
+.in-game #game .decision-actions #godControls span { display:none; }
+.in-game #game .decision-actions .dice-command { flex:none; }
 #raiseDialog { width:min(420px,calc(100% - 20px)); max-height:calc(var(--app-height,100dvh) - var(--safe-top) - var(--safe-bottom) - 24px); margin:auto; padding:18px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); box-shadow:0 12px 48px #0008; overflow:auto; }
 #raiseDialog::backdrop { background:#07171299; }
 .raise-heading { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:16px; }

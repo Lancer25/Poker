@@ -1,0 +1,87 @@
+.in-game .tool-tabs > [role="tab"] {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 3px 0;
+  gap: 2px;
+  border-radius: 8px;
+  line-height: 1.25;
+}
+.in-game .tool-tabs > [role="tab"][hidden],
+.in-game .tool-tabs #requestBadge[hidden] {
+  display: none;
+}
+.in-game .tool-tabs > [role="tab"]:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.in-game .tool-tabs > [role="tab"] .menu-icon {
+  width: 28px;
+  height: 28px;
+  box-sizing: border-box;
+}
+.in-game .tool-tabs #requestBadge {
+  inset: 2px auto auto calc(50% + 6px);
+  z-index: 1;
+  min-width: 16px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--menu-accent);
+  color: var(--surface);
+  box-shadow: 0 0 0 2px var(--menu-bg);
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 16px;
+  text-align: center;
+  pointer-events: none;
+}
+
+#roomManagement {
+  --settings-accent: var(--warm-accent);
+}
+#experienceSettings {
+  --settings-accent: var(--menu-accent);
+}
+:is(#roomManagement, #experienceSettings)[open] {
+  z-index: 82;
+}
+:is(#roomManagement, #experienceSettings)[open] > summary {
+  background: var(--menu-active);
+  border-color: var(--settings-accent);
+}
+:is(#roomManagement, #experienceSettings) > .settings-content {
+  box-sizing: border-box;
+  width: min(280px, calc(100vw - 24px));
+  padding: 14px;
+  border-block-start: 2px solid var(--settings-accent);
+  border-radius: 10px;
+  overscroll-behavior: contain;
+}
+#roomManagement > .settings-content {
+  width: min(340px, calc(100vw - 24px));
+}
+#roomManagement #hostSettingsSlot {
+  border-top: 0;
+  margin-top: 0;
+  padding-top: 0;
+}
+#roomManagement #hostSettingsSlot::before {
+  content: none;
+}
+:is(#roomManagement, #experienceSettings) > .settings-content > :is(strong, h3) {
+  display: block;
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: var(--settings-accent);
+}
+
+@media (max-width: 920px) {
+  :is(#roomManagement, #experienceSettings) > .settings-content {
+    position: fixed;
+    top: calc(var(--safe-top, 0px) + 52px);
+    right: 12px;
+    left: auto;
+    max-height: calc(var(--app-height, 100dvh) - var(--safe-top, 0px) - var(--safe-bottom, 0px) - 64px);
+    overflow: auto;
+  }
+}

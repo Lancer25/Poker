@@ -179,7 +179,8 @@ test("web friends host controls expose only first hand; legacy cash remains manu
   ]) {
     context.r = { ...room(gameMode), tournament, phase };
     vm.runInContext(`{${controls}}`, context);
-    const start = $("hostControls").children.find((b) => b.dataset.action === "start");
+    assert.equal($("hostControls").children.some((b) => b.dataset.action === "start"),false);
+    const start = $("dockHostActions").children.find((b) => b.dataset.action === "start");
     assert.equal(!!start, expected, `${gameMode}: ${phase}`);
     if (start) assert.equal(start.textContent, "开始下一手");
   }

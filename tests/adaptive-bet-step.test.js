@@ -26,5 +26,5 @@ test('opening the raise dialog focuses a non-editing control and never selects t
  const previous=globalThis.document,focus=[];
  const nodes={betAmount:{disabled:false,value:'600',removeAttribute(){},focus(){focus.push('amount');},select(){focus.push('select');}},raiseError:{hidden:false},closeRaise:{focus(){focus.push('close');}}};
  globalThis.document={getElementById:id=>nodes[id]};
- try{const ui={closeTools(){},raiseDialog:{open:false,showModal(){this.open=true;}}};RoomUI.prototype.openRaise.call(ui,'turn',()=>{});assert.deepEqual(focus,['close']);assert.equal(ui.raiseDialog.open,true);}finally{globalThis.document=previous;}
+ try{let positions=0;const ui={closeTools(){},positionRaisePanel(){positions++;},raiseDialog:{open:false,showModal(){this.open=true;}}};RoomUI.prototype.openRaise.call(ui,'turn',()=>{});assert.deepEqual(focus,['close']);assert.equal(ui.raiseDialog.open,true);assert.equal(positions,1);}finally{globalThis.document=previous;}
 });

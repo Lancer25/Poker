@@ -1,0 +1,63 @@
+#raiseDialog {
+  box-sizing: border-box;
+  width: min(380px, var(--raise-width, calc(100% - 16px)));
+  padding: 12px 16px 16px;
+  border-radius: 12px;
+  overscroll-behavior: contain;
+}
+
+#raiseDialog .raise-heading { margin-bottom: 8px; }
+#raiseDialog #closeRaise { width: 44px; height: 44px; min-height: 44px; padding: 11px; }
+
+#raiseDialog #betSizing:not([hidden]) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+#raiseDialog #betSizing[hidden] { display: none; }
+
+#raiseDialog #betSizing .bet-amount {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+
+#raiseDialog .amount-stepper {
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  margin-top: 0;
+}
+
+#raiseDialog .amount-stepper .icon-button { width: 44px; }
+#raiseDialog #betAmount { width: 100%; min-width: 0; text-align: center; font-variant-numeric: tabular-nums; }
+#raiseDialog #betSlider { height: 24px; margin: 0; }
+#raiseDialog .bet-presets button { min-width: 0; min-height: 44px; padding-inline: 4px; }
+#raiseDialog .bet-impact { padding-block: 8px 0; }
+#raiseDialog #confirmRaise { margin-top: 12px; overflow-wrap: anywhere; }
+
+@media (width > 920px) {
+  #raiseDialog[data-placement] {
+    position: fixed;
+    inset: var(--raise-top) auto auto var(--raise-left);
+    max-height: var(--raise-max-height);
+    margin: 0;
+  }
+
+  #raiseDialog[data-placement="above"] { transform: translateY(-100%); }
+}
+
+@media (max-width: 920px) {
+  #raiseDialog {
+    position: fixed;
+    inset: auto 0 var(--keyboard-inset, 0px);
+    width: 100%;
+    max-width: none;
+    max-height: min(var(--raise-available-height, 100dvh), calc(var(--app-height, 100dvh) - var(--safe-top, 0px) - 8px));
+    margin: 0;
+    padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px));
+    padding-bottom: calc(12px + var(--safe-bottom, 0px));
+    border-radius: 16px 16px 0 0;
+  }
+  #raiseDialog #raiseSlot { max-height: max(80px, calc(var(--raise-available-height, 100dvh) - 134px)); overflow: auto; overscroll-behavior: contain; }
+  #raiseDialog #confirmRaise { width:100%; min-height:44px; }
+}

@@ -93,8 +93,22 @@ node --test --test-name-pattern='real players:' tests/multiplayer.test.js
 Remove-Item Env:POKER_LOAD_PROFILE
 ```
 
-输出包括所有客户端收到操作结果的 P95、JSON 写入、快照构建、发送排队
-和状态包大小。该测试不包含浏览器绘制、手机切后台或公网延迟，不能替代线上验收。
+可固定历史配置，依次对比 JSON 和 SQLite/WAL。两次都使用各自独立的临时数据目录，
+不会迁移现有存档。为减少测试之间的干扰，建议顺序执行：
+
+```powershell
+$env:POKER_LOAD_PROFILE = 'history'
+foreach ($mode in @('json', 'sqlite')) {
+    $env:POKER_LOAD_STORAGE = $mode
+    node --test --test-name-pattern='real players:' tests/multiplayer.test.js
+    if ($LASTEXITCODE -ne 0) { throw "$mode 压测失败" }
+}
+Remove-Item Env:POKER_LOAD_PROFILE, Env:POKER_LOAD_STORAGE
+```
+
+输出包括所有客户端收到操作结果的 P95、存储保存耗时、快照构建、发送排队
+和状态包大小。SQLite 另列 WAL 文件大小，不能只按主数据库文件大小比较。
+该测试不包含浏览器绘制、手机切后台或公网延迟，不能替代线上验收。
 
 ## 目录
 

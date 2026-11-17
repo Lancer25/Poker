@@ -10,9 +10,12 @@
     <link rel="stylesheet" href="/game.css?v=modern1" />
     <link rel="stylesheet" href="/experience.css?v=revealhaptics1" />
     <link rel="stylesheet" href="/themes.css?v=recovery1" />
-    <link rel="stylesheet" href="/table-ui.css?v=rebuy5x1" />
+    <link rel="stylesheet" href="/table-ui.css?v=dock2" />
     <link rel="stylesheet" href="/replay-ui.css?v=hardening1" />
-    <link rel="stylesheet" href="/room-controls-ui.css?v=hardening1" />
+    <link rel="stylesheet" href="/room-controls-ui.css?v=dock2" />
+    <link rel="stylesheet" href="/table-menu.css?v=dock2" />
+    <link rel="stylesheet" href="/raise-panel.css?v=dock2" />
+    <link rel="stylesheet" href="/seat-hierarchy.css?v=dock2" />
   </head>
   <body>
     <header>
@@ -177,18 +180,12 @@
           >
             <img src="/assets/icons/arrow-left.svg" alt="" />
           </button>
-          <details class="experience-settings" id="experienceSettings">
+          <details class="experience-settings" id="experienceSettings" name="table-settings">
             <summary aria-label="体验设置" title="体验设置">
               <img src="/assets/icons/settings-2.svg" alt="" />
             </summary>
             <div class="settings-content">
-              <strong>体验设置</strong>
-              <section id="botSetup" class="bot-setup" aria-label="测试机器人" hidden>
-                <h4>测试机器人</h4>
-                <div class="bot-setup-actions"><label for="botCount">数量</label><input id="botCount" type="number" min="1" max="8" step="1" value="1" aria-label="添加机器人数量" /><button id="addTestBots" type="button"><img src="/assets/icons/bot.svg" alt="" />添加陪练</button></div>
-                <div id="testBotList"></div>
-              </section>
-              <div id="hostSettingsSlot"></div>
+              <strong>个人体验</strong>
               <div class="settings-themes"><span>牌室主题</span><div data-theme-picker></div></div>
               <label>游戏音效<input id="soundEnabled" type="checkbox" /></label>
               <label id="vibrationSetting">震动提醒<input id="vibrationEnabled" type="checkbox" /></label>
@@ -207,8 +204,20 @@
                 >四色牌面<input id="fourColorEnabled" type="checkbox"
               /></label>
               <label id="winnerSetting" hidden>获胜时向他人放大展示<input id="showWinningCards" type="checkbox" checked /></label>
-              <div id="roomControlSettings" hidden></div>
               <button id="copyDiagnostics" class="diagnostic-command" type="button"><img src="/assets/icons/copy.svg" alt="" />连接诊断</button>
+            </div>
+          </details>
+          <details class="experience-settings room-management" id="roomManagement" name="table-settings" hidden>
+            <summary aria-label="房主管理" title="房主管理"><img src="/assets/icons/user-round.svg" alt="" /></summary>
+            <div class="settings-content">
+              <strong>房主管理</strong>
+              <div id="hostSettingsSlot"><div id="hostControls" class="controls"></div></div>
+              <div id="roomControlSettings" hidden></div>
+              <section id="botSetup" class="bot-setup" aria-label="测试机器人" hidden>
+                <h4>测试机器人</h4>
+                <div class="bot-setup-actions"><label for="botCount">数量</label><input id="botCount" type="number" min="1" max="8" step="1" value="1" aria-label="添加机器人数量" /><button id="addTestBots" type="button"><img src="/assets/icons/bot.svg" alt="" />添加陪练</button></div>
+                <div id="testBotList"></div>
+              </section>
             </div>
           </details>
           <div>
@@ -267,7 +276,7 @@
               </div>
             </div>
             <div class="action-dock">
-              <div id="observerControls" class="observer-controls" hidden><div class="observer-copy"><strong id="observerTitle"></strong><span id="observerNotice"></span></div><button id="showObservedCards" type="button">查看底牌</button><button id="viewerManageRoom" class="icon-button" type="button" aria-label="房主管理" title="房主管理" hidden><img src="/assets/icons/settings-2.svg" alt="" /></button></div>
+              <div id="observerControls" class="observer-controls" hidden><div class="observer-copy"><strong id="observerTitle"></strong><span id="observerNotice"></span></div><button id="showObservedCards" type="button">查看底牌</button></div>
               <div id="personalHand" class="personal-hand">
                 <div id="myCards" class="cards own"></div>
                 <div class="hand-caption">
@@ -284,6 +293,7 @@
                 ></div>
                 </div>
                 <div class="decision-actions"><div id="controls" class="controls"></div>
+                <div id="dockWaiting" class="dock-waiting" hidden><strong id="dockWaitingLabel" role="status"></strong><span id="dockNextHand" hidden></span></div>
                 <button id="rollSeatDice" class="dice-command" type="button" hidden><img src="/assets/icons/dices.svg" alt="" /><span id="rollSeatDiceLabel">掷骰子</span></button>
                 </div>
                 <div id="showCardsControls" class="controls" hidden><button id="showCards" type="button">亮出手牌</button><span id="showCardsStatus" role="status"></span></div>
@@ -306,7 +316,7 @@
                     /><button id="betIncrease" class="icon-button" type="button" aria-label="增加加注金额" title="增加加注金额"><img src="/assets/icons/plus.svg" alt="" /></button></span></label>
                   </div>
                 </div>
-                <div id="hostControls" class="controls"></div>
+                <div id="dockHostActions" class="dock-host-actions"></div>
                 <div id="godControls" class="god-controls"></div>
               </div>
             </div>
@@ -371,7 +381,7 @@
                 tabindex="-1"
               >
                 <img src="/assets/icons/coins.svg" alt="" /><span>筹码</span
-                ><span id="requestBadge" hidden></span>
+                ><span id="requestBadge" aria-hidden="true" hidden></span>
               </button>
               <button
                 id="tab-results"
@@ -552,6 +562,6 @@
       <div id="winnerDialogHands"></div>
     </dialog>
     <dialog id="diagnosticDialog" aria-labelledby="diagnosticTitle"><div class="raise-heading"><h3 id="diagnosticTitle">连接诊断</h3><button id="closeDiagnostic" type="button" class="icon-button" aria-label="关闭连接诊断" title="关闭"><img src="/assets/icons/x.svg" alt="" /></button></div><textarea id="diagnosticText" readonly rows="12" aria-label="连接诊断内容"></textarea></dialog>
-    <script type="module" src="/app.js?v=rebuy5x-deadblind1"></script>
+    <script type="module" src="/app.js?v=dock2"></script>
   </body>
 </html>

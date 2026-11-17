@@ -1,11 +1,24 @@
 .room-controls, .room-control-settings { color:var(--ink); font-size:12px; line-height:1.5; min-width:0; }
 .room-controls[hidden], .room-control-settings[hidden] { display:none; }
 .room-controls { border-top:1px solid var(--line); padding:8px 0; }
-.room-controls-status, .room-controls-actions, .room-control-settings { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; }
+.room-controls-status, .room-controls-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; }
 .room-controls-status strong { font-size:12px; font-weight:600; overflow-wrap:anywhere; }
 .room-controls-connection, .room-controls-pause { color:var(--muted); }
 .room-controls[data-connected=false] .room-controls-connection, .room-controls-error { color:var(--negative); }
 .room-controls-error:empty { display:none; }
+.room-control-settings { display:grid; gap:8px; }
+#roomManagement .room-control-settings:not([hidden]) {
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:var(--input-bg);
+}
+#roomManagement .room-control-settings label {
+  display:flex;
+  justify-content:space-between;
+  margin:0;
+}
+#roomManagement .room-control-settings .room-control-select select { background:var(--surface); }
 .room-controls-actions { margin-top:6px; }
 .room-control-toggle, .room-control-select { display:inline-flex; align-items:center; gap:6px; min-width:0; }
 .room-control-toggle { min-height:36px; cursor:pointer; }

@@ -1,7 +1,12 @@
-export function seatRenderKey(p,room,index,roles){
+export function visibleHandTotal(player, streetWager) {
+  const total = player.totalBet;
+  return Number.isFinite(total) && total > 0 && total !== streetWager ? total : null;
+}
+
+export function seatRenderKey(p,room,index,roles,handTotal=p.totalBet){
  return JSON.stringify([room.me,index,room.turn===index,room.turn===index?room.deadline:null,
-  room.phase==='showdown'||!!room.tournament?.completed,roles,
-  ...['id','name','avatar','isBot','seatNumber','stack','bet','totalBet','folded','godMode','handLabel','eliminated','inHand'].map(k=>p[k]),p.cards]);
+  room.phase==='showdown'||!!room.tournament?.completed,roles,handTotal,
+  ...['id','name','avatar','isBot','seatNumber','stack','bet','folded','godMode','handLabel','eliminated','inHand'].map(k=>p[k]),p.cards]);
 }
 export function reconcileChildren(parent,nodes){
  const wanted=new Set(nodes);

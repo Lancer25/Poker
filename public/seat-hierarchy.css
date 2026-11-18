@@ -1,0 +1,39 @@
+.in-game #game .table-scene .seat .stack {
+  color: #fff3bf;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
+.in-game #game .table-scene .seat .name {
+  color: #f0f6f2;
+  font-weight: 600;
+}
+
+.in-game #game .table-scene .seat.folded :is(.name, .stack) {
+  color: var(--muted);
+}
+
+.in-game #game .table-scene .seat .hand-total {
+  color: #becfc6;
+  font-weight: 400;
+}
+
+.in-game #game .table-scene .seat :is(.hand-total, .bet) {
+  max-width: var(--seat-width);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.in-game #game .table-scene .seat .bet {
+  color: #f0d492;
+  font-weight: 650;
+}
+
+.in-game #game .table-scene[data-density=mobile-compact] .seat .bet {
+  min-height: 0;
+  margin-top: 0;
+  padding-inline: 2px;
+  font-size: var(--seat-total);
+  line-height: 10px;
+}

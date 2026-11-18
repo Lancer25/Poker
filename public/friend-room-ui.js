@@ -34,7 +34,7 @@ export function renderFriendRoomUI(room,{send,connected,confirm,feedback}) {
     for(const row of [...rows.children])if(!nextRows.includes(row))row.remove();
     if(arrived)feedback?.sound('dice');
     const idle=s.status==='idle',legacyReady=s.status==='ready'&&!Number.isFinite(s.autoStartAt),canStart=idle||legacyReady;
-    roll.disabled=!connected || (canStart?room.host!==room.me || s.entries.length<2:!s.canRoll);
+    roll.disabled=!connected || (canStart?room.host!==room.me || s.entries.length<2 || room.roomControls?.canContinue===false:!s.canRoll);
     document.getElementById('rollSeatDiceLabel').textContent=canStart?(room.host===room.me?'开始比赛':'等待房主开局'):s.status==='ready'?'即将发牌':s.canRoll?(s.rollRound?'重掷骰子':'掷骰子'):'等待其他牌手';
     roll.onclick=()=>{roll.disabled=true;if(canStart)send('start');else send('rollseat',{version:s.version,rollRound:s.rollRound});};
   }

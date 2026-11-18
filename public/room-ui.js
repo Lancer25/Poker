@@ -61,6 +61,20 @@ export function outerSeatPositions(count,portrait){
   };
   return tables[count]||[];
 }
+export function raisePanelPlacement(anchor, viewport, width, height) {
+  const gap = 8;
+  const top = viewport.top + gap;
+  const bottom = viewport.bottom - gap;
+  const above = Math.max(0, Math.min(bottom, anchor.top - gap) - top);
+  const below = Math.max(0, bottom - Math.max(top, anchor.bottom + gap));
+  const opensAbove = above >= height || above >= below;
+  return {
+    left: Math.max(viewport.left + gap, Math.min(anchor.right - width, viewport.right - gap - width)),
+    top: opensAbove ? top + above : bottom - below,
+    maxHeight: opensAbove ? above : below,
+    opensAbove,
+  };
+}
 export class RoomUI {
   constructor() {
     this.mobile=matchMedia('(max-width: 920px)');
@@ -73,28 +87,24 @@ export class RoomUI {
     this.observerEmpty=document.createElement('p');this.observerEmpty.id='observerEmpty';this.observerEmpty.className='muted';this.observerEmpty.textContent='暂无可查看的底牌';this.observerEmpty.hidden=true;
     handPanel.append(document.getElementById('godHands'),this.observerEmpty,insight);
     this.aux=document.createElement('div');this.aux.className='aux-controls';
-    for(const id of ['showCardsControls','hostControls','godControls'])this.aux.append(document.getElementById(id));
+    for(const id of ['showCardsControls','dockHostActions','godControls'])this.aux.append(document.getElementById(id));
     document.querySelector('.decision-actions').append(this.aux);
     document.querySelector('.decision-actions').prepend(document.getElementById('winnerFocus'));
     const winnerDialog=document.getElementById('winnerDialog');
     document.getElementById('closeWinnerDialog').onclick=()=>winnerDialog.close();
     winnerDialog.addEventListener('click',event=>{const r=winnerDialog.getBoundingClientRect();if(event.target===winnerDialog&&(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom))winnerDialog.close();});
-    this.raiseDialog=document.getElementById('raiseDialog');
-    document.getElementById('raiseSlot').append(document.getElementById('betSizing'));
-    document.getElementById('closeRaise').onclick=()=>this.closeRaise();
-    document.getElementById('confirmRaise').onclick=()=>{if(!document.getElementById('confirmRaise').disabled)this.raiseSubmit?.();};
-    this.raiseDialog.addEventListener('close',()=>{if(!this.raiseDialog.open){this.raiseSubmit=null;this.raiseKey='';}});
-    this.raiseDialog.addEventListener('click',event=>{const r=this.raiseDialog.getBoundingClientRect();if(event.target===this.raiseDialog&&(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom))this.closeRaise();});
-    document.getElementById('betAmount').addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();document.getElementById('confirmRaise').click();}});
-    this.roomCommand=document.createElement('button');this.roomCommand.id='roomCommand';this.roomCommand.type='button';this.roomCommand.hidden=true;
-    this.roomCommand.onclick=()=>{document.getElementById('experienceSettings').open=true;document.getElementById('hostControls').querySelector('button,select')?.focus();};this.aux.append(this.roomCommand);
+    this.setupRaisePanel();
     const accountSlot=document.createElement('div');accountSlot.className='room-account-links';this.accountLinks=[];
     for(const id of ['profileLink','adminLink','logout']){const source=document.getElementById(id),link=source.cloneNode(false);link.removeAttribute('id');link.textContent=source.textContent;if(id==='logout')link.onclick=()=>source.click();accountSlot.append(link);this.accountLinks.push([source,link]);}
     document.querySelector('.settings-content').append(accountSlot);
     document.querySelectorAll('.tool-tabs button').forEach(tab=>{const icon=tab.querySelector('img'),frame=document.createElement('span'),glyph=document.createElement('span');if(!icon)return;frame.className='menu-icon';frame.setAttribute('aria-hidden','true');glyph.className='menu-glyph';glyph.style.setProperty('--glyph',`url('${icon.getAttribute('src')}')`);frame.append(glyph);icon.replaceWith(frame);});
     this.backdrop.onclick=()=>this.closeTools();
     document.getElementById('showObservedCards').onclick=()=>document.getElementById('tab-insight').click();
-    document.getElementById('viewerManageRoom').onclick=()=>{document.getElementById('experienceSettings').open=true;document.getElementById('hostControls').querySelector('button,select')?.focus();};
+    const experience=document.getElementById('experienceSettings'),management=document.getElementById('roomManagement');
+    experience.querySelector('summary').addEventListener('click',()=>{if(!experience.open)management.open=false;});
+    management.querySelector('summary').addEventListener('click',()=>{if(!management.open)experience.open=false;});
+    experience.addEventListener('toggle',()=>{if(experience.open)management.open=false;});
+    management.addEventListener('toggle',()=>{if(management.open)experience.open=false;});
     document.getElementById('closeTools').onclick=()=>this.closeTools();
     document.addEventListener('keydown',event=>{
       if(event.key==='Escape' && document.body.classList.contains('tools-open')){this.closeTools();return;}
@@ -150,31 +160,113 @@ export class RoomUI {
     document.querySelectorAll('[data-panel]').forEach(button=>button.setAttribute('aria-expanded','false'));
     if(open)document.querySelector('[data-panel][aria-selected="true"]')?.focus();
   }
+  setupRaisePanel() {
+    const dialog = this.raiseDialog = document.getElementById('raiseDialog');
+    const sizing = document.getElementById('betSizing');
+    const amount = document.getElementById('betAmount');
+    const row = amount.closest('.bet-amount');
+    const label = row.querySelector('label');
+    label.htmlFor = amount.id;
+    row.append(label, amount.closest('.amount-stepper'), document.getElementById('betSlider'));
+    sizing.append(row, document.getElementById('betPresets'), document.getElementById('betImpact'));
+    document.getElementById('raiseSlot').append(sizing);
+
+    const confirm = document.getElementById('confirmRaise');
+    document.getElementById('closeRaise').onclick = () => this.closeRaise();
+    confirm.onclick = () => {
+      if (!confirm.disabled) this.raiseSubmit?.();
+    };
+    dialog.addEventListener('cancel', event => {
+      event.preventDefault();
+      this.closeRaise();
+    });
+    dialog.addEventListener('click', event => {
+      if (event.target !== dialog) return;
+      const bounds = dialog.getBoundingClientRect();
+      if (event.clientX < bounds.left || event.clientX > bounds.right ||
+          event.clientY < bounds.top || event.clientY > bounds.bottom) this.closeRaise();
+    });
+    amount.addEventListener('keydown', event => {
+      if (event.key !== 'Enter' || event.isComposing) return;
+      event.preventDefault();
+      confirm.click();
+    });
+    let frame;
+    const position = () => {
+      if (!dialog.open || frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = undefined;
+        this.positionRaisePanel();
+      });
+    };
+    window.addEventListener('resize', position);
+    window.addEventListener('scroll', position, {passive: true});
+    window.visualViewport?.addEventListener('resize', position);
+    window.visualViewport?.addEventListener('scroll', position);
+  }
+  positionRaisePanel() {
+    const dialog = this.raiseDialog;
+    if (!dialog.open) return;
+    const trigger = document.querySelector('#controls [data-action=raise]');
+    if (this.mobile.matches || !trigger?.getClientRects().length) {
+      delete dialog.dataset.placement;
+      if(this.mobile.matches){
+        const view=window.visualViewport,board=document.getElementById('board');
+        const bottom=(view?.offsetTop||0)+(view?.height||innerHeight);
+        const rect=board?.getClientRects().length?board.getBoundingClientRect():null;
+        const available=rect?.height?bottom-rect.bottom-12:bottom-16;
+        dialog.style.setProperty('--raise-available-height',Math.max(200,available)+'px');
+      }
+      return;
+    }
+    const view = window.visualViewport;
+    const left = view?.offsetLeft ?? 0;
+    const top = view?.offsetTop ?? 0;
+    const viewport = {
+      left, top,
+      right: left + (view?.width ?? document.documentElement.clientWidth),
+      bottom: top + (view?.height ?? document.documentElement.clientHeight),
+    };
+    dialog.style.setProperty('--raise-width', Math.max(0, viewport.right - left - 16) + 'px');
+    const placement = raisePanelPlacement(trigger.getBoundingClientRect(), viewport,
+      dialog.offsetWidth, dialog.scrollHeight + dialog.offsetHeight - dialog.clientHeight);
+    dialog.style.setProperty('--raise-left', placement.left + 'px');
+    dialog.style.setProperty('--raise-top', placement.top + 'px');
+    dialog.style.setProperty('--raise-max-height', placement.maxHeight + 'px');
+    dialog.dataset.placement = placement.opensAbove ? 'above' : 'below';
+  }
   openRaise(key,submit) {
     if(document.getElementById('betAmount').disabled)return;
     this.closeTools();this.raiseKey=key;this.raiseSubmit=submit;
     document.getElementById('raiseError').hidden=true;document.getElementById('betAmount').removeAttribute('aria-invalid');
     this.raiseInput=document.getElementById('betAmount').value;
     if(!this.raiseDialog.open)this.raiseDialog.showModal();
+    this.raiseDialog.scrollTop = 0;
     document.getElementById('closeRaise').focus({preventScroll:true});
+    this.positionRaisePanel();
   }
   closeRaise(restore=true) {
     if(!this.raiseDialog?.open)return;
     this.raiseSubmit=null;this.raiseKey='';this.raiseDialog.close();
-    if(restore)document.querySelector('#controls [data-action=raise]:not(:disabled)')?.focus();
+    delete this.raiseDialog.dataset.placement;
+    if(restore)document.querySelector('#controls [data-action=raise]:not(:disabled)')?.focus({preventScroll:true});
   }
   showRaiseError(message) {
     this.raiseInput=document.getElementById('betAmount').value;
     const error=document.getElementById('raiseError');error.textContent=message;error.hidden=false;
     document.getElementById('betAmount').setAttribute('aria-invalid','true');
+    this.positionRaisePanel();
   }
   refreshRaise(available,key) {
     const value=document.getElementById('betAmount').value;
-    if(this.raiseInput!==value){document.getElementById('raiseError').hidden=true;document.getElementById('betAmount').removeAttribute('aria-invalid');this.raiseInput=value;}
+    const error = document.getElementById('raiseError');
+    const errorCleared = this.raiseInput !== value && !error.hidden;
+    if(this.raiseInput!==value){error.hidden=true;document.getElementById('betAmount').removeAttribute('aria-invalid');this.raiseInput=value;}
     const source=document.querySelector('#controls [data-action=raise]'),submit=document.getElementById('confirmRaise');
     submit.disabled=!available||!source||source.disabled;
     submit.textContent='确认'+(source?.getAttribute('aria-label')||'加注');
     if(this.raiseDialog.open&&(!available||this.raiseKey!==key||submit.disabled))this.closeRaise(false);
+    else if (errorCleared) this.positionRaisePanel();
   }
   sync(room) {
     this.room=room;document.body.dataset.phase=room.phase;
@@ -185,10 +277,9 @@ export class RoomUI {
     if(document.getElementById('winnerFocus').parentElement!==winnerParent)winnerParent.prepend(document.getElementById('winnerFocus'));
     this.personalHand.dataset.player=room.me;
     this.personalHand.classList.toggle('folded',!!room.players.find(player=>player.id===room.me)?.folded);
-    game.classList.toggle('viewer-no-actions',!!mode&&!document.getElementById('godControls').children.length&&!room.canShowCards);
     document.getElementById('observerControls').hidden=!mode;
     document.getElementById('observerTitle').textContent=mode==='god'?'上帝模式':mode==='spectator'?'观战模式':'旁观中';
-    document.getElementById('observerNotice').textContent=document.getElementById('stage').textContent;
+    document.getElementById('observerNotice').textContent=document.getElementById('dockWaitingLabel').textContent||document.getElementById('stage').textContent;
     const observed=document.getElementById('godHands').children.length,canObserve=!!room.godMode&&observed>0;
     document.getElementById('showObservedCards').hidden=!canObserve;
     document.getElementById('showObservedCards').textContent=`查看底牌${canObserve?' · '+observed:''}`;
@@ -197,13 +288,11 @@ export class RoomUI {
     document.querySelector('#tab-insight > span:last-child').textContent=mode?'底牌':'牌面';
     if(document.getElementById('tab-insight').getAttribute('aria-selected')==='true')document.getElementById('drawerTitle').textContent=mode?'底牌':'牌面';
     const active=['preflop','flop','turn','river'].includes(room.phase);
-    const hostControls=document.getElementById('hostControls');
-    document.getElementById('hostSettingsSlot').append(hostControls);
-    this.roomCommand.hidden=room.host!==room.me||active||!hostControls.children.length||(room.gameMode==='friends'&&room.phase==='waiting'&&room.hand===0);
-    this.roomCommand.textContent=room.phase==='ended'?'再开一场':room.phase==='waiting'?(room.hand?'继续发牌':'开局设置'):'房主管理';
+    const manager=document.getElementById('roomManagement');
+    manager.hidden=room.host!==room.me;
+    if(manager.hidden)manager.open=false;
     this.accountLinks.forEach(([source,link])=>{link.hidden=source.hidden;});
     game.classList.toggle('room-idle',!active);
-    document.getElementById('viewerManageRoom').hidden=!mode||room.host!==room.me||!hostControls.children.length;
     const dice=document.getElementById('seatDice');dice.dataset.status=room.seating?.status||'';
     this.arrange();
   }
@@ -216,13 +305,6 @@ export class RoomUI {
     this.scene.style.width=frame.width+'px';this.scene.style.height=frame.height+'px';this.scene.dataset.compact=String(portrait?frame.width<310:frame.height<(seats.length===2?540:400));
     this.scene.dataset.orientation=portrait?'portrait':'landscape';
     this.scene.dataset.density=seatDensity(frame.width,frame.height,seats.length,portrait);
-    for(const seat of seats){
-      const total=seat.querySelector('.hand-total'),status=seat.querySelector('.bet');
-      const compact=this.scene.dataset.density==='mobile-compact'&&!!status.textContent;
-      const amount=Number(total.dataset.amount)||0;
-      total.textContent=compact?status.textContent+' · '+amount.toLocaleString():'总下注 '+amount;
-      status.hidden=compact;
-    }
     const scale=portraitSeatScale(frame.width,portrait);
     this.scene.style.setProperty('--seat-scale',scale);
     const positions=outerSeatPositions(seats.length,portrait);

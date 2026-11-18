@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { performance } from "node:perf_hooks";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -10,9 +10,12 @@ import { setTimeout as delay } from "node:timers/promises";
 import { WebSocket } from "./protocol-peer.js";
 import { seedAccounts, registerAt, apiAt } from "./auth-helpers.js";
 import {createRoom,joinRoom} from '../server/game.js';
+import {createRoomStore} from '../server/room-store.js';
 
 const loadProfile=process.env.POKER_LOAD_PROFILE;
+const loadStorage=process.env.POKER_LOAD_STORAGE||'json';
 assert.ok(!loadProfile||['baseline','history'].includes(loadProfile),'POKER_LOAD_PROFILE must be baseline or history');
+assert.ok(!loadProfile||['json','sqlite'].includes(loadStorage),'POKER_LOAD_STORAGE must be json or sqlite');
 const betting=new Set(['fold','check','call','raise','allin']);
 
 function seedHistory(directory) {
@@ -26,7 +29,8 @@ function seedHistory(directory) {
     room.completedRounds=[1,2].map(number=>({number,hand:20,history,results}));
     return room;
   });
-  writeFileSync(path.join(directory,'rooms.json'),JSON.stringify({rooms,sessions:[]}));
+  const storage=createRoomStore(directory,{mode:loadStorage});
+  try{storage.save({rooms,sessions:[]});}finally{storage.close();}
 }
 
 async function harness(t) {
@@ -38,7 +42,7 @@ async function harness(t) {
   if(loadProfile==='history')seedHistory(directory);
   let counter = 0;
   const server = spawn(process.execPath, ["server/index.js"], {
-    env: { ...process.env, HOST:'127.0.0.1', PORT: "0", DATA_DIR: directory, ...(loadProfile?{ROOM_STORAGE:'json',BACKUP_INTERVAL_MS:'0'}:{}) },
+    env: { ...process.env, HOST:'127.0.0.1', PORT: "0", DATA_DIR: directory, ...(loadProfile?{ROOM_STORAGE:loadStorage,BACKUP_INTERVAL_MS:'0'}:{}) },
     stdio: ["ignore", "pipe", "pipe"],
   });
   t.after(async () => {
@@ -168,9 +172,10 @@ async function harness(t) {
     if(!loadProfile)return;
     const {status,data}=await apiAt(port,'/api/admin/diagnostics','GET',undefined,adminToken);
     assert.equal(status,200);
+    assert.equal(data.storage.mode,loadStorage);
     const s=[...samples].sort((a,b)=>a-b),p95=Number(s[Math.ceil(s.length*.95)-1].toFixed(2));
     const current=data.latency.current;
-    t.diagnostic(JSON.stringify({profile:loadProfile,players:count,samples:s.length,allPeersReceiveP95Ms:p95,rooms:data.rooms.total,storedBytes:data.storage.bytes,save:current.saveMs,snapshot:current.snapshotMs,sendQueue:current.queueMs,stateBytes:current.stateBytes}));
+    t.diagnostic(JSON.stringify({profile:loadProfile,storage:loadStorage,players:count,samples:s.length,allPeersReceiveP95Ms:p95,rooms:data.rooms.total,storedBytes:data.storage.bytes,walBytes:data.storage.walBytes,save:current.saveMs,snapshot:current.snapshotMs,sendQueue:current.queueMs,stateBytes:current.stateBytes}));
   }
   return { client, room, step, profile };
 }

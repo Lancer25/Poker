@@ -73,3 +73,8 @@ node server/storage-tools.js export-json ./sqlite-data ./exported-json --offline
 输入目录不会被替换。切换时设置 `ROOM_STORAGE=sqlite` 及新 `DATA_DIR`。
 SQLite 使用 WAL，运行时不能仅复制数据库主文件充当完整备份，请使用
 提供的备份工具。JSON 仍为默认存储方式。
+
+首次切换应先在独立目录做导入与恢复演练。正式停服后再备份、导入并核对账号、
+房间和历史，确认成功后才对玩家开放。若 SQLite 已接收新写入，回退时应先
+停止服务，并将最新的 SQLite 数据导出到新的 JSON 目录。不能直接指回切换前
+的 JSON 目录，否则会丢失切换后的对局及账号变更。

@@ -1,16 +1,19 @@
+import {ExperiencePreferences} from './experience-preferences.js?v=experience3';
 import {objectTransitions} from './table-objects.js?v=realtable1';
 import {chipBundle,payoutTransfers} from './chip-display.js?v=fivechips1';
 const { preferences, transitions, WarningClock, HapticClock, winnerIds } =
   window.TableExperience;
 export class TableFeedback {
-  constructor() {
-    try {
-      this.settings = preferences(
-        JSON.parse(localStorage.getItem("holdem-experience")),
-      );
-    } catch {
-      this.settings = preferences();
-    }
+  constructor({ onStatus } = {}) {
+    this.onStatus = onStatus;
+    let storage;
+    try { storage = localStorage; } catch {}
+    // Some legacy embedders evaluate this class without module imports.
+    this.preferenceStore = typeof ExperiencePreferences === 'function'
+      ? new ExperiencePreferences(preferences, storage) : null;
+    this.settings = this.preferenceStore?.load() || preferences();
+    this.account = null;
+    this.generation = 0;
     this.animations = new Set();
     this.voices = new Set();
     this.warning = new WarningClock();
@@ -20,8 +23,10 @@ export class TableFeedback {
     this.audio = null;
     this.active = false;
     this.apply();
+    this.notifyStatus();
     document.addEventListener("visibilitychange", () => {
       this.reset();
+      this.notifyStatus();
       if (document.hidden) this.audio?.suspend().catch(() => {});
     });
     window.addEventListener("pagehide", () => {
@@ -32,11 +37,13 @@ export class TableFeedback {
       "pointerdown",
       () => {
         if (this.settings.sound) this.unlock();
+        this.notifyStatus();
       },
       { passive: true },
     );
     document.addEventListener("keydown", () => {
       if (this.settings.sound) this.unlock();
+      this.notifyStatus();
     });
   }
   apply() {
@@ -45,27 +52,66 @@ export class TableFeedback {
   }
   configure(patch) {
     this.settings = preferences({ ...this.settings, ...patch });
-    try {
-      localStorage.setItem("holdem-experience", JSON.stringify(this.settings));
-    } catch {}
+    this.settings = this.preferenceStore?.save(this.settings) || this.settings;
     this.apply();
     if (!this.settings.motion) this.clear();
     if (!this.settings.vibration) this.stopVibration();
     if (!this.settings.sound) {
       this.stopSound();
       this.audio?.suspend().catch(() => {});
-    } else this.unlock();
+    }
+    this.notifyStatus();
+  }
+  setAccount(id) {
+    const account = id === null || id === undefined || id === '' ? null : String(id);
+    if (account === this.account) return this.settings;
+    this.generation++;
+    this.reset();
+    // Closing the old context also cancels a pending resume from the old account.
+    const oldAudio = this.audio;
+    this.audio = null;
+    try { oldAudio?.close()?.catch(() => {}); } catch {}
+    this.account = account;
+    this.settings = this.preferenceStore?.setAccount(account) || preferences();
+    this.apply();
+    this.notifyStatus();
+    return this.settings;
+  }
+  get capabilities() {
+    const audioAvailable = !this.audioUnavailable && typeof (window.AudioContext || window.webkitAudioContext) === 'function';
+    return {
+      sound: !audioAvailable ? 'unavailable' :
+        this.audio?.state === 'running' && !document.hidden ? 'ready' : 'needs-gesture',
+      vibration: !this.vibrationSupported ? 'unsupported' :
+        navigator.userActivation?.hasBeenActive === false ? 'needs-gesture' : 'available',
+      reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
+    };
+  }
+  notifyStatus() {
+    try { this.onStatus?.(this.capabilities); } catch {}
   }
   async unlock() {
     if (!this.settings.sound || document.hidden) return false;
+    const generation = this.generation;
     try {
       const Audio = window.AudioContext || window.webkitAudioContext;
-      if (!Audio) return false;
+      if (!Audio) { this.notifyStatus(); return false; }
       if(this.audio?.state==='closed')this.audio=null;
-      this.audio ??= new Audio();
-      await this.audio.resume();
-      return this.audio.state === "running";
+      if (!this.audio) {
+        try { this.audio = new Audio(); } catch {
+          this.audioUnavailable = true;
+          this.notifyStatus();
+          return false;
+        }
+        this.audio.onstatechange = () => this.notifyStatus();
+      }
+      const audio = this.audio;
+      await audio.resume();
+      if (generation !== this.generation || audio !== this.audio) return false;
+      this.notifyStatus();
+      return audio.state === 'running';
     } catch {
+      if (generation === this.generation) this.notifyStatus();
       return false;
     }
   }

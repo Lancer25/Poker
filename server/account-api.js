@@ -154,7 +154,7 @@ export function createAccountApi(accounts, hooks) {
       }
       if (!pathname.startsWith("/api/admin/") || user.role !== "admin")
         throw new AccountError("没有管理权限", 403);
-      if(req.method==='GET'&&pathname==='/api/admin/diagnostics')return json(res,200,hooks.diagnostics(user,req));
+      if(req.method==='GET'&&pathname==='/api/admin/diagnostics')return json(res,200,await hooks.diagnostics(user,req));
       if(req.method==='GET'&&pathname==='/api/admin/backups')return json(res,200,await hooks.backups(user));
       if(req.method==='POST'&&pathname==='/api/admin/backups'){await body(req);return json(res,200,await hooks.createBackup(user));}
       if (req.method === "GET" && pathname === "/api/admin/state")

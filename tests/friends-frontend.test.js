@@ -50,6 +50,7 @@ function harness() {
     toast: (text) => errors.push(text), selectPanel() {},
   });
   vm.runInContext(section('function setBetLabel(button,text)', 'function button('),context);
+  vm.runInContext(section('function invalidBetReason(room,raw)', 'function refreshDockFeedback('),context);
   vm.runInContext(section("function renderBetControls(r)", "function selectPanel("), context);
   vm.runInContext(section('let previousGameMode = "friends"', 'const back = $("back")'), context);
   const render = (r) => { context.state = r; context.renderBetControls(r); };

@@ -34,6 +34,7 @@ import {ActionTiming,TIMED_ACTIONS} from './action-timing.js';
 import {BETTING_ACTIONS,validateAction,recordActionReceipt} from './action-protocol.js';
 import {transportInfo} from './transport-security.js';
 import {createRoomStore} from './room-store.js';
+import {projectHealthStatus} from './health-status.js';
 import {createBackupOffThread,listBackupsOffThread} from './backup-store.js';
 import {initializeControls,roomControlCommand,requestSpectatorAdmission,updateRoomControls,canContinueRoom,realtimeAllowed} from './room-controls.js';
 import {resetLatency,probeLatency,receiveLatencyPong,playerConnections} from './player-latency.js';
@@ -55,11 +56,13 @@ import {
   validCookieOrigin,
 } from "./account-api.js";
 const root = fileURLToPath(new URL("../", import.meta.url));
+const buildVersion=process.env.BUILD_VERSION||(()=>{try{return JSON.parse(readFileSync(path.join(root,'build-info.json'),'utf8')).version;}catch{return null;}})();
 const data = process.env.DATA_DIR || path.join(root, "data");
 mkdirSync(data, { recursive: true });
 const roomStore=createRoomStore(data);
-const stored=roomStore.load();
+const stored=roomStore.load({lazyEnded:true});
 const rooms = new Map(stored.rooms.map((r) => [r.id, r]));
+const activeRooms=new Map(stored.rooms.filter(r=>r.phase!=='ended').map(r=>[r.id,r]));
 const sessions = new Map(stored.sessions);
 const accounts = new AccountStore(data);
 const forecasts=new ForecastService();
@@ -79,11 +82,14 @@ function save(changedRooms) {
   const start=performance.now();
   try {
   roomStore.save({rooms:[...rooms.values()],sessions:[...sessions]},changedRooms==null?undefined:Array.isArray(changedRooms)?changedRooms:[changedRooms]);
+  for(const room of changedRooms==null?rooms.values():Array.isArray(changedRooms)?changedRooms:[changedRooms]){
+    if(room.phase==='ended')activeRooms.delete(room.id);else activeRooms.set(room.id,room);
+  }
   } finally { metrics.observe('saveMs',performance.now()-start); }
 }
 let initialized = false;
 const startupTime = Date.now();
-for (const room of rooms.values()) {
+for (const room of activeRooms.values()) {
   if(room.gameMode==='friends' && room.phase==='waiting' && room.hand===0 && !room.seating){resetSeating(room);initialized=true;}
   if (updateLifecycle(room, new Set(), startupTime, idleTimeout))
     initialized = true;
@@ -113,7 +119,7 @@ function runBackup(){
 if(backupInterval)setInterval(()=>runBackup().catch(()=>console.error('Scheduled backup failed')),backupInterval).unref();
 const server = http.createServer(async (req, res) => {
   const pathname = new URL(req.url, "http://localhost").pathname;
-  if (pathname.startsWith("/api/")) return accountApi(req, res, pathname);
+  if (pathname.startsWith("/api/")) return Promise.resolve(accountApi(req,res,pathname)).finally(()=>roomStore.releaseColdRooms?.());
   if (/^\/avatars\/[a-f0-9]{64}\.jpg$/.test(pathname)) {
     const file = path.join(data, "avatars", path.basename(pathname));
     if (!existsSync(file)) {
@@ -153,6 +159,8 @@ const server = http.createServer(async (req, res) => {
     "/table-menu.css": "table-menu.css",
     "/raise-panel.css": "raise-panel.css",
     "/seat-hierarchy.css": "seat-hierarchy.css",
+    "/dock-feedback.css": "dock-feedback.css",
+    "/experience-preferences.js": "experience-preferences.js",
     "/room-ui.js": "room-ui.js",
     "/connection-recovery.js": "connection-recovery.js",
     "/assets/themes/tables-v1.webp": "assets/themes/tables-v1.webp",
@@ -498,7 +506,7 @@ wss.on("connection", (ws, req) => {
         if(ws.watchRequest&&(msg.type!=='watch'||ws.watchRequest.room!==String(msg.room)))cancelWatch(ws);
         if (msg.type === "create") {
           cancelWatch(ws);
-          if (rooms.size >= 1000) throw Error("房间数量已达上限");
+          if (activeRooms.size >= 1000) throw Error("活跃房间数量已达上限");
           let created;
           do {
             created = createRoom(
@@ -616,7 +624,7 @@ wss.on("connection", (ws, req) => {
       });
       if(controlRequestId&&ws.identity){const current=rooms.get(ws.identity.room);if(current){save(current);broadcast(current);}}
       if(error.code==='action_stale'&&ws.identity){const current=rooms.get(ws.identity.room);if(current)broadcast(current);}
-    } finally {metrics.observe('messageMs',performance.now()-receivedAt);}
+    } finally {roomStore.releaseColdRooms?.();metrics.observe('messageMs',performance.now()-receivedAt);}
   });
 });
 function liveRoomMember(user,roomId) {
@@ -633,10 +641,13 @@ function bindLegacy(user, roomId, playerId) {
   return result;
 }
 const accountApi = createAccountApi(accounts, {
-  diagnostics(user,req){
-    const mem=process.memoryUsage();return {at:new Date().toISOString(),uptimeSeconds:Math.floor(process.uptime()),node:process.version,
+  async diagnostics(user,req){
+    const latency=metrics.snapshot(),backup={running:!!backupTask,last:lastBackup,failedAt:backupFailedAt,intervalSeconds:backupInterval/1000,keep:backupKeep};
+    let catalog;try{catalog=await backupSummary();}catch{}
+    const health=projectHealthStatus({now:Date.now(),buildVersion,latency,backup,backups:catalog});
+    const mem=process.memoryUsage();return {health,at:new Date().toISOString(),uptimeSeconds:Math.floor(process.uptime()),node:process.version,
       storage:roomStore.stats(),memory:{rss:mem.rss,heapUsed:mem.heapUsed},rooms:{total:rooms.size,active:[...rooms.values()].filter(r=>['preflop','flop','turn','river'].includes(r.phase)).length,onlineConnections:[...wss.clients].filter(ws=>ws.readyState===WebSocket.OPEN&&ws.identity).length},
-      latency:metrics.snapshot(),transport:transportInfo(req,{enforced:process.env.REQUIRE_SECURE_AUTH==='1'}),backup:{running:!!backupTask,last:lastBackup,failedAt:backupFailedAt,intervalSeconds:backupInterval/1000,keep:backupKeep}};
+      latency,transport:transportInfo(req,{enforced:process.env.REQUIRE_SECURE_AUTH==='1'}),backup};
   },
   async backups(){return {backups:await backupSummary(),running:!!backupTask};},
   async createBackup(user){const result=await runBackup();accounts.record(user.id,'create_backup',null,{id:result.id,mode:result.mode});return {backup:result};},
@@ -785,7 +796,7 @@ setInterval(() => {
   const now = Date.now(),
     connected = presence(now);
   const changedRooms = [];
-  for (const room of rooms.values())
+  for (const room of activeRooms.values())
     try {
       const online = connected.get(room.id) || new Set();
       const controlsVersion=room.controls?.version;

@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>好友德州 · 后台</title>
-    <link rel="stylesheet" href="/admin.css?v=hardening1" />
+    <link rel="stylesheet" href="/admin.css?v=health1" />
   </head>
   <body>
     <header>
@@ -78,7 +78,15 @@
       </div>
       <section id="view-system" role="tabpanel" aria-labelledby="nav-system" hidden>
         <div class="section-heading"><h1>运行诊断</h1><button id="refreshSystem" type="button" class="icon-button" aria-label="刷新运行诊断" title="刷新"><img src="/assets/icons/refresh-cw.svg" alt="" /></button></div>
-        <p id="systemStatus" role="status"></p><dl id="systemSummary" class="system-summary"></dl>
+          <p id="systemStatus" role="status"></p>
+          <div class="health-insight" aria-labelledby="healthHeading">
+            <h2 id="healthHeading">健康提示</h2>
+            <p id="healthStatus" role="status" aria-live="polite">尚未获取健康数据</p>
+            <dl id="healthMetadata" class="system-summary"></dl>
+            <ul id="healthChecks"></ul>
+            <p class="health-note">仅后台提示。耗时按连续 3 个完整分钟窗口评估，每个窗口至少 20 个样本；断连信号按连续 2 个窗口评估，不代表实际重连人数。无数据不代表正常。</p>
+          </div>
+          <dl id="systemSummary" class="system-summary"></dl>
         <h2>操作耗时</h2><div class="table-scroll"><table><thead><tr><th>指标</th><th>样本</th><th>平均 ms</th><th>P95 ms</th><th>最大 ms</th></tr></thead><tbody id="systemLatency"></tbody></table></div>
         <div class="section-heading"><h2>备份</h2><button id="createBackup" type="button">创建备份</button></div>
         <div class="table-scroll"><table><thead><tr><th>时间</th><th>模式</th><th>完整性</th><th>编号</th></tr></thead><tbody id="systemBackups"></tbody></table></div>
@@ -420,6 +428,6 @@
         </div>
       </form>
     </dialog>
-    <script type="module" src="/admin.js?v=hardening1"></script>
+    <script type="module" src="/admin.js?v=health1"></script>
   </body>
 </html>

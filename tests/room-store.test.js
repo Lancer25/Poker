@@ -29,6 +29,17 @@ function fixture() {
     opaque: { nested: ['unchanged', null] } }, { id: 'minimal' }], sessions: [['token', { room: 'legacy', player: 'u' }], ['other', 'legacy']] };
 }
 
+test('cold SQLite rooms load history only on demand, preserve writes and survive reactivation',t=>{
+ const dir=sandbox(t),store=createRoomStore(dir,{mode:'sqlite'}),data=fixture();data.rooms[0].phase='ended';store.save(data);
+ const restored=store.load({lazyEnded:true}),room=restored.rooms[0];assert.equal(store.stats().historyReads,0);
+ assert.equal(room.completedRounds.length,2);assert.equal(store.stats().historyReads,0);
+ assert.deepEqual(room.history,data.rooms[0].history);assert.equal(store.stats().historyReads,1);
+ room.history[0].oddLegacyField.a='updated';store.save(restored,[room]);store.releaseColdRooms();
+ assert.equal(room.history[0].oddLegacyField.a,'updated');
+ store.releaseColdRooms();room.phase='waiting';room.history=[];store.save(restored,[room]);store.releaseColdRooms();
+ assert.deepEqual(room.history,[]);assert.equal(store.load().rooms[0].phase,'waiting');
+});
+
 for (const mode of ['json', 'sqlite']) {
   test(`${mode}: legacy exactness, mutable hands, archives, sessions and reopen`, t => {
     const dir = sandbox(t);

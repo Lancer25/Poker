@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 const require = createRequire(import.meta.url);
 const own = (value, key) => Object.hasOwn(value, key);
 const encode = value => JSON.stringify(value);
+const coldViews=new WeakSet();
 
 export function validateRoomData(value) {
   if (!value || !Array.isArray(value.rooms) || !Array.isArray(value.sessions)) throw Error('Invalid room dataset');
@@ -13,6 +14,7 @@ export function validateRoomData(value) {
   for (const room of value.rooms) {
     if (!room || typeof room.id !== 'string' || !room.id || ids.has(room.id)) throw Error('Invalid or duplicate room ID');
     ids.add(room.id);
+    if(coldViews.has(room))continue;
     for (const key of ['history', 'completedRounds']) {
       if (own(room, key) && !Array.isArray(room[key])) throw Error(`Invalid room ${key}`);
     }
@@ -29,8 +31,8 @@ export function validateRoomData(value) {
 }
 
 function metadata(value, fields) {
-  const result = { ...value };
-  for (const field of fields) if (own(result, field)) result[field] = null;
+  const result = {};
+  for(const key of Object.keys(value))result[key]=fields.includes(key)?null:value[key];
   return encode(result);
 }
 
@@ -78,10 +80,28 @@ export function createRoomStore(dataDir, { mode = process.env.ROOM_STORAGE || 'j
     CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, position INTEGER NOT NULL, body TEXT NOT NULL);`); }
   catch (error) { db.close(); throw error; }
   let cache = new Map();
+  const cold=new Map();
+  let historyReads=0;
   const prepared = new Map();
   const sql = source => {
     if (!prepared.has(source)) prepared.set(source, db.prepare(source));
     return prepared.get(source);
+  };
+  let lazyEndedMode=false;
+  const attachCold=(room,id)=>{
+          let history,rounds;
+          const loadHistory=()=>{historyReads++;return sql('SELECT body FROM hands WHERE room_id=? ORDER BY position').all(id).map(h=>JSON.parse(h.body));};
+          const loadRounds=()=>sql('SELECT position,body FROM archives WHERE room_id=? ORDER BY position').all(id).map(a=>{
+            const round=JSON.parse(a.body);
+            if(own(round,'history')){
+              let archiveHistory;
+              Object.defineProperty(round,'history',{enumerable:true,configurable:true,get(){check();if(!archiveHistory){historyReads++;archiveHistory=sql('SELECT body FROM archive_hands WHERE room_id=? AND archive_position=? ORDER BY position').all(id,a.position).map(h=>JSON.parse(h.body));}return archiveHistory;},set(value){archiveHistory=value;}});
+            }
+            return round;
+          });
+          if(own(room,'history'))Object.defineProperty(room,'history',{enumerable:true,configurable:true,get(){check();return history??=loadHistory();},set(value){history=value;}});
+          if(own(room,'completedRounds'))Object.defineProperty(room,'completedRounds',{enumerable:true,configurable:true,get(){check();return rounds??=loadRounds();},set(value){rounds=value;}});
+          coldViews.add(room);cold.set(id,{room,release(){history=rounds=undefined;}});
   };
   const remember = room => ({ history: room.history, length: room.history?.length || 0,
     revision: room.historyRevision, round: room.roundNumber,
@@ -99,10 +119,13 @@ export function createRoomStore(dataDir, { mode = process.env.ROOM_STORAGE || 'j
   };
   return {
     mode,
-    load() {
+    load({lazyEnded=false}={}) {
       check();
+      lazyEndedMode=lazyEnded;
+      cold.clear();
       const rooms = sql('SELECT id,body FROM rooms ORDER BY position').all().map(row => {
         const room = JSON.parse(row.body);
+        if(lazyEnded&&room.phase==='ended'){attachCold(room,row.id);return room;}
         if (own(room, 'history')) room.history = sql('SELECT body FROM hands WHERE room_id=? ORDER BY position').all(row.id).map(h => JSON.parse(h.body));
         if (own(room, 'completedRounds')) room.completedRounds = sql('SELECT position,body FROM archives WHERE room_id=? ORDER BY position').all(row.id).map(a => {
           const round = JSON.parse(a.body);
@@ -112,9 +135,10 @@ export function createRoomStore(dataDir, { mode = process.env.ROOM_STORAGE || 'j
         return room;
       });
       const result = validateRoomData({ rooms, sessions: sql('SELECT id,body FROM sessions ORDER BY position').all().map(s => [s.id, JSON.parse(s.body)]) });
-      cache = new Map(rooms.map(room => [room.id, remember(room)]));
+      cache = new Map(rooms.filter(room=>!coldViews.has(room)).map(room => [room.id, remember(room)]));
       return result;
     },
+    releaseColdRooms(){check();for(const [id,item]of cold)if(item.room.phase==='ended'){item.release();cache.delete(id);}},
     save(value, changedRooms) {
       check(); validateRoomData(value);
       const selected = changedRooms == null ? null : new Set([...changedRooms].map(r => typeof r === 'string' ? r : r.id));
@@ -127,6 +151,7 @@ export function createRoomStore(dataDir, { mode = process.env.ROOM_STORAGE || 'j
         }
         value.rooms.forEach((room, position) => {
           const previous = cache.get(room.id);
+          if(selected&&!selected.has(room.id)&&cold.has(room.id)){sql('UPDATE rooms SET position=? WHERE id=? AND position<>?').run(position,room.id,position);return;}
           if (selected && !selected.has(room.id) && previous) {
             sql('UPDATE rooms SET position=? WHERE id=? AND position<>?').run(position, room.id, position); return;
           }
@@ -147,6 +172,8 @@ export function createRoomStore(dataDir, { mode = process.env.ROOM_STORAGE || 'j
         for (const row of sql('SELECT id FROM sessions').all()) if (!sessionIds.has(row.id)) sql('DELETE FROM sessions WHERE id=?').run(row.id);
         value.sessions.forEach(([id, session], position) => sql('INSERT INTO sessions VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET position=excluded.position,body=excluded.body WHERE position<>excluded.position OR body<>excluded.body').run(id, position, encode(session)));
         db.exec('COMMIT'); cache = nextCache; writes++;
+        for(const id of cold.keys())if(!ids.has(id))cold.delete(id);
+        if(lazyEndedMode)for(const room of value.rooms)if(room.phase==='ended'&&!cold.has(room.id)){attachCold(room,room.id);cache.delete(room.id);}
       } catch (error) { db.exec('ROLLBACK'); throw error; }
     },
     async snapshot(destinationDir) {
@@ -164,7 +191,7 @@ export function createRoomStore(dataDir, { mode = process.env.ROOM_STORAGE || 'j
       check();
       return { mode, bytes: statSync(file).size, walBytes: existsSync(file + '-wal') ? statSync(file + '-wal').size : 0,
         rooms: Number(sql('SELECT count(*) AS n FROM rooms').get().n), hands: Number(sql('SELECT count(*) AS n FROM hands').get().n),
-        archives: Number(sql('SELECT count(*) AS n FROM archives').get().n), writes, changes: Number(sql('SELECT total_changes() AS n').get().n) };
+        archives: Number(sql('SELECT count(*) AS n FROM archives').get().n), coldRooms:cold.size,historyReads,writes, changes: Number(sql('SELECT total_changes() AS n').get().n) };
     },
     close() { if (!closed) { db.close(); closed = true; } },
   };

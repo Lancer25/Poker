@@ -35,3 +35,4 @@ setup*.json
 admin-local*.json
 Thumbs.db
 .DS_Store
+build-info.json

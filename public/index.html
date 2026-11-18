@@ -16,6 +16,7 @@
     <link rel="stylesheet" href="/table-menu.css?v=dock2" />
     <link rel="stylesheet" href="/raise-panel.css?v=dock2" />
     <link rel="stylesheet" href="/seat-hierarchy.css?v=dock2" />
+    <link rel="stylesheet" href="/dock-feedback.css?v=dockfeedback1" />
   </head>
   <body>
     <header>
@@ -186,6 +187,8 @@
             </summary>
             <div class="settings-content">
               <strong>个人体验</strong>
+              <p id="feedbackStatus" class="dock-feedback" role="status" aria-live="polite"></p>
+              <label>默认加注档位<select id="defaultRaisePreset"><option value="min">最小加注</option><option value="half">½ 底池</option><option value="pot">底池</option></select></label>
               <div class="settings-themes"><span>牌室主题</span><div data-theme-picker></div></div>
               <label>游戏音效<input id="soundEnabled" type="checkbox" /></label>
               <label id="vibrationSetting">震动提醒<input id="vibrationEnabled" type="checkbox" /></label>
@@ -291,14 +294,17 @@
                   class="turn-notice"
                   aria-live="polite"
                 ></div>
+                <p id="actionSubmissionStatus" class="dock-feedback" role="status" aria-live="polite"></p>
                 </div>
                 <div class="decision-actions"><div id="controls" class="controls"></div>
                 <div id="dockWaiting" class="dock-waiting" hidden><strong id="dockWaitingLabel" role="status"></strong><span id="dockNextHand" hidden></span></div>
+                <button id="dockPending" class="dock-pending" type="button" title="查看我的待办" aria-label="查看我的待办" hidden><img src="/assets/icons/coins.svg" alt="" /></button>
                 <button id="rollSeatDice" class="dice-command" type="button" hidden><img src="/assets/icons/dices.svg" alt="" /><span id="rollSeatDiceLabel">掷骰子</span></button>
                 </div>
                 <div id="showCardsControls" class="controls" hidden><button id="showCards" type="button">亮出手牌</button><span id="showCardsStatus" role="status"></span></div>
                 <div id="betSizing" class="bet-sizing" hidden>
                   <dl id="betImpact" class="bet-impact" aria-live="polite"><div><dt>加注至</dt><dd id="betTarget">-</dd></div><div><dt>本次补入</dt><dd id="betAdded">-</dd></div><div><dt>剩余</dt><dd id="betRemaining">-</dd></div></dl>
+                  <p id="betValidation" class="dock-feedback bet-validation" role="status" hidden></p>
                   <div class="bet-presets" id="betPresets"></div>
                   <div class="bet-amount">
                     <input
@@ -312,6 +318,7 @@
                         inputmode="numeric"
                         pattern="[0-9]+"
                         autocomplete="off"
+                        aria-describedby="betValidation betImpact"
                         aria-label="加注至（本轮总额）"
                     /><button id="betIncrease" class="icon-button" type="button" aria-label="增加加注金额" title="增加加注金额"><img src="/assets/icons/plus.svg" alt="" /></button></span></label>
                   </div>
@@ -443,6 +450,7 @@
               <details id="friendManager" class="friend-manager" hidden><summary>房间管理</summary><div id="friendMembers"></div></details>
               <h3>筹码管理</h3>
               <div id="roomControls" hidden></div>
+              <p id="continuationStatus" class="dock-feedback" role="status" hidden></p>
               <form id="rebuy">
                 <select id="friendRebuyMultiplier" aria-label="补充筹码倍数" hidden><option value="1">1 倍</option><option value="2">2 倍</option><option value="3">3 倍</option><option value="4">4 倍</option><option value="5">5 倍</option></select>
                 <input
@@ -562,6 +570,6 @@
       <div id="winnerDialogHands"></div>
     </dialog>
     <dialog id="diagnosticDialog" aria-labelledby="diagnosticTitle"><div class="raise-heading"><h3 id="diagnosticTitle">连接诊断</h3><button id="closeDiagnostic" type="button" class="icon-button" aria-label="关闭连接诊断" title="关闭"><img src="/assets/icons/x.svg" alt="" /></button></div><textarea id="diagnosticText" readonly rows="12" aria-label="连接诊断内容"></textarea></dialog>
-    <script type="module" src="/app.js?v=dock2"></script>
+    <script type="module" src="/app.js?v=experience3"></script>
   </body>
 </html>

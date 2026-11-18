@@ -638,3 +638,16 @@ select:focus-visible {
     padding: 20px 0;
   }
 }
+.health-insight {
+  border: 1px solid #7c8a91;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 0;
+  overflow-wrap: anywhere;
+}
+.health-insight h2 { margin-top: 0; }
+.health-insight ul { padding-left: 22px; }
+.health-insight li { margin: 10px 0; }
+.health-insight [data-status="warning"] { color: #ffbd80; }
+.health-insight [data-status="unknown"], .health-note { color: #b6c5cc; }
+.health-note { font-size: 13px; line-height: 1.6; }

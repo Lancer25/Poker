@@ -2,7 +2,7 @@ import { avatarFromFile, showAvatar } from "/avatar-upload.js?v=avatar1";
 import {renderFriendRoomUI} from '/friend-room-ui.js?v=dock2';
 import {PlayerPanel} from '/player-panel.js?v=charms1';
 import {renderForecast} from '/hand-forecast-ui.js?v=playerforecast1';
-import { TableFeedback } from "/table-feedback.js?v=hardening1";
+import { TableFeedback } from "/table-feedback.js?v=experience3";
 import {RoomUI,paintPortrait} from '/room-ui.js?v=dock2';
 import {ConnectionRecovery} from '/connection-recovery.js?v=raiseux2';
 import {renderTableObjects,wagerView} from '/table-objects.js?v=hardening1';
@@ -15,6 +15,72 @@ const $ = (id) => document.getElementById(id);
 const { decisionKey, betOptions, betStep, stepBetAmount, chipUnit,betImpact,connectionStatus } = TableExperience;
 const feedback = new TableFeedback();
 const roomUI = new RoomUI();
+let preferredRaisePreset='min';
+const raisePreferenceMemory=new Map();
+const raisePreferenceKey=()=>`holdem-default-raise:${feedback.account===null?'device':'account:'+feedback.account}`;
+const validRaisePreset=value=>['min','half','pot'].includes(value)?value:'min';
+function continuationBlockers(room) {
+  const c=room?.roomControls;
+  if(!c?.enabled || room.phase==='ended')return [];
+  const blockers=[];
+  if(c.pause)blockers.push(c.pause.state==='active'?'牌桌已暂停':c.pause.state==='granted'?'本手后暂停':'暂停申请等待表决');
+  for(const seat of c.seats||[]){
+    if(!seat.eligible)continue;
+    const reasons=[];
+    if(seat.away)reasons.push('暂离');
+    if(seat.pendingAway===true)reasons.push('本手后暂离');
+    if(!seat.ready&&(c.settings?.requireReady||c.pause?.state==='active'))reasons.push('未准备');
+    if(reasons.length)blockers.push(`${seat.name}：${reasons.join('、')}`);
+  }
+  return blockers;
+}
+function invalidBetReason(room,raw) {
+  const o=betOptions(room),value=Number(raw),unit=chipUnit(room);
+  if(!/^\d+$/.test(raw)||!Number.isSafeInteger(value))return '请输入整数筹码';
+  if(value>o.max)return `最多加注至 ${o.max.toLocaleString()}`;
+  if(value<Math.min(o.min,o.max))return `至少加注至 ${Math.min(o.min,o.max).toLocaleString()}`;
+  if(value===o.max?!o.canAllin:!o.canRaise)return '本次操作不能加注或全下';
+  if(value%unit)return `筹码必须为 ${unit} 的倍数`;
+  return '';
+}
+function refreshDockFeedback(){
+  if(!state)return;
+  const blockers=continuationBlockers(state);
+  $('continuationStatus').textContent=blockers.length?'继续条件 · '+blockers.join('；'):'';
+  $('continuationStatus').hidden=!blockers.length;
+  $('dockWaitingLabel').title=blockers.join('；')||$('dockWaitingLabel').textContent;
+  if(blockers.length&&['waiting','showdown'].includes(state.phase))$('dockWaitingLabel').textContent=blockers[0];
+  const chip=(state.requests||[]).find(r=>r.status==='pending'&&(state.gameMode==='friends'?r.canApprove:state.me===state.host));
+  const pause=state.roomControls?.pause;
+  const vote=pause?.state==='pending'&&pause.voters.includes(state.me)&&!pause.approvals.includes(state.me);
+  const entry=$('dockPending');entry.hidden=state.phase==='ended'||(!chip&&!vote);
+  const pendingLabel=chip?`处理 ${state.players.find(p=>p.id===chip.player)?.name||'牌手'} 的 ${chip.amount} 筹码申请`:'处理暂停表决';
+  entry.title=pendingLabel;entry.setAttribute('aria-label',pendingLabel);
+  entry.onclick=()=>{
+    selectPanel('chips');
+    const target=chip?[...$('requests').children].find(row=>row.dataset.request===String(chip.id)):$('roomControls');
+    if(!target)return;
+    target.tabIndex=-1;target.focus({preventScroll:true});target.scrollIntoView({block:'nearest'});
+  };
+}
+function syncFeedbackStatus(){
+  const key=raisePreferenceKey();
+  if(!raisePreferenceMemory.has(key)){let value;try{value=localStorage.getItem(key);}catch{}raisePreferenceMemory.set(key,validRaisePreset(value));}
+  preferredRaisePreset=raisePreferenceMemory.get(key);$('defaultRaisePreset').value=preferredRaisePreset;
+  for(const [id,field] of [['soundEnabled','sound'],['vibrationEnabled','vibration'],['motionEnabled','motion'],['fourColorEnabled','fourColor']])$(id).checked=feedback.settings[field];
+  $('soundVolume').value=Math.round(feedback.settings.volume*100);
+  const c=feedback.capabilities;
+  if(c)$('vibrationEnabled').disabled=c.vibration==='unsupported';
+  const hints=[];
+  if(c?.sound==='unavailable')hints.push('当前浏览器不支持音效');
+  if(c?.sound==='needs-gesture'&&feedback.settings.sound)hints.push('点击或按键后启用音效');
+  if(c?.vibration==='unsupported')hints.push('当前浏览器不支持震动');
+  if(c?.vibration==='needs-gesture'&&feedback.settings.vibration)hints.push('点击或按键后启用震动');
+  if(c?.reducedMotion)hints.push('系统已启用减少动态效果');
+  $('feedbackStatus').textContent=hints.join(' · ');
+}
+feedback.onStatus=()=>syncFeedbackStatus();
+$('defaultRaisePreset').onchange=()=>{preferredRaisePreset=validRaisePreset($('defaultRaisePreset').value);const key=raisePreferenceKey();raisePreferenceMemory.set(key,preferredRaisePreset);try{localStorage.setItem(key,preferredRaisePreset);}catch{}};
 fetch('/api/security').then(response=>response.ok?response.json():null).then(info=>{
   if(!info||info.secure||['localhost','127.0.0.1','[::1]'].includes(location.hostname))return;
   const warning=$('transportWarning');warning.hidden=false;warning.textContent='HTTP 连接未加密';
@@ -317,10 +383,11 @@ function showLogin(message = "") {
   historyRoomKey = "";
   historyRound = "current";
   currentUser = null;
-  document.body.classList.remove('authenticated');window.HoldemTheme?.setAccount(null);roomUI.closeTools();
+  document.body.classList.remove('authenticated');window.HoldemTheme?.setAccount(null);feedback.setAccount?.(null);syncFeedbackStatus();roomUI.closeTools();
   $('authPassword').type='password';$('togglePassword').setAttribute('aria-pressed','false');$('togglePassword').setAttribute('aria-label','显示密码');$('togglePassword').title='显示密码';$('togglePassword').querySelector('img').src='/assets/icons/eye.svg';
   state = null;
   renderTablePendingBadge(null);
+  $('dockPending').hidden=true;
   document.body.classList.remove("in-game");
   archiveList.replaceChildren();
   [
@@ -340,6 +407,8 @@ function showLogin(message = "") {
     "myName",
     "myStack",
     "turnNotice",
+    "actionSubmissionStatus",
+    "continuationStatus",
     "standings",
     "eventRules",
     "completedRounds",
@@ -368,7 +437,7 @@ function showLogin(message = "") {
 function updateAccount(user) {
   if (currentUser?.id !== user.id) historyCache.reset();
   currentUser = user;
-  document.body.classList.add('authenticated');window.HoldemTheme?.setAccount(user.id);
+  document.body.classList.add('authenticated');window.HoldemTheme?.setAccount(user.id);feedback.setAccount?.(user.id);syncFeedbackStatus();
   archiveTitle.textContent =
     user.role === "admin" ? "我的房间与历史场次" : "最近房间";
   $("accountName").textContent = $("lobbyNickname").textContent = user.nickname;
@@ -456,8 +525,9 @@ function toast(message) {
 }
 function send(type, data = {}) {
   if (socket?.readyState !== 1 || (type !== "authenticate" && !connected))
-    return toast("连接尚未就绪");
+    { if(['fold','check','call','raise','allin'].includes(type))$('actionSubmissionStatus').textContent='未发送 · 连接尚未就绪';return toast("连接尚未就绪"); }
   if (["fold", "check", "call", "raise", "allin"].includes(type)) {
+    if(recovery.mode!=='ready'){ $('actionSubmissionStatus').textContent='未发送 · 连接恢复后请重新确认操作';return; }
     if (pendingAction || !state || state.players[state.turn]?.id !== state.me)
       return;
     const remaining =
@@ -468,6 +538,7 @@ function send(type, data = {}) {
     const actionId=liveMetrics.startAction(performance.now());
     data={...data,actionId,requestId:actionId,decision:state.actionContext};
     pendingAction = { key: decisionKey(state),requestId:actionId };
+    $('actionSubmissionStatus').textContent='提交中 · 等待服务器确认';
     refreshBetControls();
   }
   if (type === "restart") {
@@ -481,6 +552,7 @@ function send(type, data = {}) {
   try {
     socket.send(JSON.stringify({ type, ...data }));
   } catch {
+    $('actionSubmissionStatus').textContent='未确认 · 连接中断，操作不会自动重发，请恢复后核对状态';
     toast("连接中断，请等待重新连接");
     recovery.failed('send_error');
   }
@@ -488,6 +560,7 @@ function send(type, data = {}) {
 function dropConnection() {
   const previous=socket;socket=null;
   if(previous){previous.onclose=previous.onmessage=previous.onopen=previous.onerror=null;try{previous.close();}catch{}}
+  if(pendingAction)$('actionSubmissionStatus').textContent=pendingAction.confirmed?'已确认 · 恢复后同步状态':'未确认 · 操作不会自动重发，请恢复后核对状态';
   connected=false;rejectControlRequests('连接中断，操作未自动重发');playerPanel.close();forecastController.reset();
   refreshRoomControls();
   if(state)renderBotSetup(state,{user:currentUser,connected,send});
@@ -529,7 +602,7 @@ function connect() {
     if (socket !== connection) return;
     let msg;try{msg=JSON.parse(e.data);}catch{recovery.failed('invalid_message');return;}
     if(msg.type==='player_latency'){receivePlayerLatency(msg);return;}
-    if(msg.type==='action_result'&&pendingAction?.requestId===msg.requestId){pendingAction.confirmed=true;pendingAction.version=msg.version;refreshBetControls();}
+    if(msg.type==='action_result'&&pendingAction?.requestId===msg.requestId){pendingAction.confirmed=true;pendingAction.version=msg.version;$('actionSubmissionStatus').textContent='已确认 · 服务器已接收';refreshBetControls();}
     if(msg.type==='roomcontrol_result'){
       const task=controlRequests.get(msg.requestId);if(task){clearTimeout(task.timer);controlRequests.delete(msg.requestId);task.resolve(msg);}return;
     }
@@ -581,6 +654,7 @@ function connect() {
       const failedResume=recovery.mode==='resuming';if(failedResume)recovery.ready();
       pendingReveal = null;refreshShowCards();
       liveMetrics.cancelActions();
+      if(pendingAction)$('actionSubmissionStatus').textContent='未完成 · '+msg.message;
       pendingAction = null;
       pendingRematch = null;
       refreshBetControls();
@@ -706,6 +780,7 @@ function renderRebuyRequests(r) {
     const name=r.players.find(p=>p.id===req.player)?.name || '';
     const title=document.createElement('div');
     title.textContent=`${name} 申请 ${req.amount}${req.kind==='friend-rebuy'?`（${req.amount/r.initial} 倍）`:''}`;
+    row.dataset.request=String(req.id);
     row.append(title);
     if(req.kind==='friend-rebuy') {
       const progress=document.createElement('div');progress.className='rebuy-progress';
@@ -1062,6 +1137,7 @@ function render() {
     primary.replaceChildren(resume);
   }
   renderRebuyRequests(r);
+  refreshDockFeedback();
   renderRoundRecords(r);
   renderHistoryPanel();
   $("log").replaceChildren(
@@ -1313,25 +1389,20 @@ function renderBetControls(r) {
   $("betSizing").hidden = !own;
   if (c.dataset.decision !== key) {
     c.dataset.decision = key;
+    if(own)$('actionSubmissionStatus').textContent='未发送 · 请选择操作';
     c.replaceChildren();
     $("betPresets").replaceChildren();
     if (own) {
       const options = betOptions(r);
-      $("betAmount").value = Math.min(options.min, options.max);
+      const preset=typeof preferredRaisePreset==='string'?preferredRaisePreset:'min';
+      $("betAmount").value = Math.min(options[preset], options.max);
       const raise = button("加注至", "raise");
       raise.setAttribute('aria-haspopup','dialog');raise.setAttribute('aria-controls','raiseDialog');
       raise.onclick = () => roomUI.openRaise(key, () => {
         const amount = Number($("betAmount").value),
           o = betOptions(state);
-        if (
-          !/^\d+$/.test($("betAmount").value) ||
-          !Number.isSafeInteger(amount) ||
-          amount > o.max ||
-          amount < Math.min(o.min, o.max)
-        )
-          return roomUI.showRaiseError("请输入合法的加注金额");
-        if(amount % chipUnit(state))
-          return roomUI.showRaiseError("筹码必须为 5 的倍数");
+        const reason=invalidBetReason(state,$('betAmount').value);
+        if(reason)return roomUI.showRaiseError(reason);
         roomUI.closeRaise(false);
         send(amount === o.max ? "allin" : "raise", { amount });
       });
@@ -1376,6 +1447,7 @@ function refreshBetControls() {
       0;
   const recovering=typeof recovery!=='undefined'&&recovery.mode!=='ready';
   const blocked = !own || !connected || recovering || !!pendingAction || expired;
+  $('game').dataset.actionState=pendingAction?(pendingAction.confirmed?'confirmed':'pending'):recovering||!connected?'unknown':'ready';
   const number = $("betAmount"),
     slider = $("betSlider"),
     low = Math.min(o.min, o.max);
@@ -1409,7 +1481,15 @@ function refreshBetControls() {
           ? "全下 " + o.max.toLocaleString()
           : "加注 " + (Number(number.value) || 0).toLocaleString());
   });
-  roomUI.refreshRaise(own && connected && !pendingAction && !expired,decisionKey(state));
+  roomUI.refreshRaise(own && connected && !recovering && !pendingAction && !expired,decisionKey(state));
+  const reason=invalidBetReason(state,number.value);
+  const hint=$('betValidation');
+  const me=state.players.find(p=>p.id===state.me);
+  const exact=valid&&me&&value>=me.bet&&value<=o.max?` · 目标 ${value.toLocaleString()} / 补入 ${(value-(me.bet||0)).toLocaleString()} / 剩余 ${(me.stack-value+(me.bet||0)).toLocaleString()}`:'';
+  hint.textContent=reason?reason+exact:impact?.allin?'全下 · 补入全部剩余筹码':'';hint.hidden=!hint.textContent;
+  number.setAttribute('aria-invalid',String(!!reason));
+  $('confirmRaise').disabled ||= !!reason;
+  if(!$('raiseDialog').open&&own&&!pendingAction&&$('actionSubmissionStatus').textContent==='')$('actionSubmissionStatus').textContent='未发送 · 请选择操作';
   if (pendingAction) $("turnNotice").textContent = pendingAction.confirmed?'已确认，正在同步':"提交中";
   else if (!connected||recovering) $("turnNotice").textContent = connectionStatus(typeof recovery==='undefined'?'waiting':recovery.mode);
   else if (own) $("turnNotice").textContent = "轮到你";
